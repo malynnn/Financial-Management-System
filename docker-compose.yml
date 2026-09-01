@@ -1,0 +1,46 @@
+services:
+  # ─── PostgreSQL Database ────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    container_name: fms_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fms_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fms_password}
+      POSTGRES_DB: ${POSTGRES_DB:-fms_db}
+      POSTGRES_HOST_AUTH_METHOD: md5
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-fms_user} -d ${POSTGRES_DB:-fms_db}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── NestJS Backend ─────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fms_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      MICROSERVICE_HOST: 0.0.0.0
+      MICROSERVICE_PORT: 3002
+      DATABASE_URL: postgresql://${POSTGRES_USER:-fms_user}:${POSTGRES_PASSWORD:-fms_password}@postgres:5432/${POSTGRES_DB:-fms_db}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    ports:
+      - '3001:3001'
+      - '3002:3002'
+
+volumes:
+  postgres_data:

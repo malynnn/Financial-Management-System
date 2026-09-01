@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ─── Backend ───────────────────────────────
+backend/node_modules
+backend/dist
+backend/coverage
+backend/.env
+
+# ─── Docker ────────────────────────────────
+.env
+# Keep .env.example committed
+!.env.example

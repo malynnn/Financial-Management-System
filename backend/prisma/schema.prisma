@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  TREASURER
+  AUDITOR
+  MEMBER
+}
+
+enum PaymentMethod {
+  CASH
+  GCASH
+  BANK_TRANSFER
+  CHECK
+  OTHER
+}
+
+enum CollectionStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+// ─────────────────────────────────────────
+// USER / AUTH
+// ─────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(MEMBER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  collections   Collection[]
+  disbursements Disbursement[]
+  fundTransfers FundTransfer[]
+}
+
+// ─────────────────────────────────────────
+// COLLECTION (CPS-001, CPS-002)
+// ─────────────────────────────────────────
+
+model Collection {
+  id               String           @id @default(cuid())
+
+  // CPS-001: all five fields required
+  memberId         String
+  paymentAmount    Decimal          @db.Decimal(12, 2)
+  paymentDate      DateTime
+  paymentMethod    PaymentMethod
+  paymentReference String
+
+  // Optional notes
+  description      String?
+
+  // Treasurer review status
+  status           CollectionStatus @default(PENDING)
+
+  // CPS-002: proof of payment file
+  proofOfPaymentPath String?
+  proofOfPaymentName String?
+
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  member           User             @relation(fields: [memberId], references: [id])
+}
+
+// ─────────────────────────────────────────
+// DISBURSEMENT
+// ─────────────────────────────────────────
+
+model Disbursement {
+  id          String   @id @default(cuid())
+  amount      Decimal  @db.Decimal(12, 2)
+  description String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  disbursedById String
+  disbursedBy   User   @relation(fields: [disbursedById], references: [id])
+}
+
+// ─────────────────────────────────────────
+// FUND TRANSFER
+// ─────────────────────────────────────────
+
+model FundTransfer {
+  id          String   @id @default(cuid())
+  amount      Decimal  @db.Decimal(12, 2)
+  fromAccount String
+  toAccount   String
+  description String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  transferredById String
+  transferredBy   User   @relation(fields: [transferredById], references: [id])
+}

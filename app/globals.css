@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme {
+  /* BDOEA Custom Brand Colors */
+  --color-bdoea-navy: #04152d;
+  --color-bdoea-yellow: #facc15;
+  --color-bdoea-bg: #f3f4f6;
+}
+
+body {
+  background-color: var(--color-bdoea-bg);
+  color: #111827;
+}

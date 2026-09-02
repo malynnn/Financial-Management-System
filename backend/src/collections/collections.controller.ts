@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -15,13 +16,17 @@ import {
   ApiConsumes,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { CollectionStatus } from '@prisma/client';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { CollectionsService } from './collections.service';
+import { ApplyPaymentDto } from './dto/apply-payment.dto';
 import { CreateCollectionDto } from './dto/create-collection.dto';
+import { RejectCollectionDto } from './dto/reject-collection.dto';
 
 // CPS-002: multer storage config
 const proofStorage = diskStorage({
@@ -46,6 +51,7 @@ export class CollectionsController {
   @ApiResponse({ status: 201, description: 'Collection submitted successfully' })
   @ApiResponse({ status: 400, description: 'Validation failed — missing required fields' })
   @ApiResponse({ status: 404, description: 'Member not found' })
+  @ApiResponse({ status: 409, description: 'Duplicate payment reference' })
   submitCollection(@Body() dto: CreateCollectionDto) {
     return this.collectionsService.submitCollection(dto);
   }
@@ -82,20 +88,97 @@ export class CollectionsController {
   }
 
   /**
-   * GET all collections (Treasurer / Auditor)
+   * CPS-003 — Retrieve pending collection queue
+   */
+  @Get('queue/pending')
+  @ApiOperation({ summary: "CPS-003: Retrieve Treasurer's Pending/For Verification collection queue" })
+  @ApiResponse({ status: 200, description: 'List of pending collection submissions' })
+  getPendingQueue() {
+    return this.collectionsService.getPendingQueue();
+  }
+
+  /**
+   * CPS-005 — Check if payment reference is duplicate
+   */
+  @Get('check-duplicate/:ref')
+  @ApiOperation({ summary: 'CPS-005: Check if payment reference already exists' })
+  @ApiParam({ name: 'ref', description: 'Payment reference number to verify' })
+  @ApiQuery({ name: 'excludeId', required: false, description: 'Collection ID to exclude from check' })
+  checkDuplicate(
+    @Param('ref') paymentReference: string,
+    @Query('excludeId') excludeId?: string,
+  ) {
+    return this.collectionsService.checkDuplicate(paymentReference, excludeId);
+  }
+
+  /**
+   * CPS-004 & CPS-007 — Validate submitted payment details & generate collection reference
+   */
+  @Post(':id/validate')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'CPS-004 & CPS-007: Validate payment details, proof of payment, and generate collection ref no' })
+  @ApiParam({ name: 'id', description: 'Collection ID' })
+  @ApiResponse({ status: 200, description: 'Collection validated and collectionRefNo generated' })
+  @ApiResponse({ status: 400, description: 'Validation failed (incomplete fields or missing proof)' })
+  @ApiResponse({ status: 409, description: 'Duplicate payment detected' })
+  validateCollection(@Param('id') id: string) {
+    return this.collectionsService.validateCollection(id);
+  }
+
+  /**
+   * CPS-006 & CPS-008 — Apply payment to financial obligation
+   */
+  @Post(':id/apply')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'CPS-006 & CPS-008: Apply payment to financial obligation and update balances' })
+  @ApiParam({ name: 'id', description: 'Collection ID' })
+  @ApiResponse({ status: 200, description: 'Payment posted and applied successfully' })
+  @ApiResponse({ status: 400, description: 'Obligation has zero balance or invalid application' })
+  @ApiResponse({ status: 404, description: 'Collection or obligation not found' })
+  applyPayment(
+    @Param('id') id: string,
+    @Body() dto: ApplyPaymentDto,
+  ) {
+    return this.collectionsService.applyPayment(id, dto);
+  }
+
+  /**
+   * Reject collection with reason
+   */
+  @Post(':id/reject')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reject collection with reason' })
+  @ApiParam({ name: 'id', description: 'Collection ID' })
+  @ApiResponse({ status: 200, description: 'Collection rejected' })
+  rejectCollection(
+    @Param('id') id: string,
+    @Body() dto: RejectCollectionDto,
+  ) {
+    return this.collectionsService.rejectCollection(id, dto);
+  }
+
+  /**
+   * GET all collections
    */
   @Get()
-  @ApiOperation({ summary: 'Get all collection submissions' })
-  @ApiResponse({ status: 200, description: 'List of all collections' })
-  findAll() {
-    return this.collectionsService.findAll();
+  @ApiOperation({ summary: 'Get all collections with optional filters' })
+  @ApiQuery({ name: 'status', required: false, enum: CollectionStatus })
+  @ApiQuery({ name: 'memberId', required: false })
+  @ApiQuery({ name: 'search', required: false })
+  @ApiResponse({ status: 200, description: 'List of collections' })
+  findAll(
+    @Query('status') status?: CollectionStatus,
+    @Query('memberId') memberId?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.collectionsService.findAll(status, memberId, search);
   }
 
   /**
    * GET single collection by ID
    */
   @Get(':id')
-  @ApiOperation({ summary: 'Get a collection by ID' })
+  @ApiOperation({ summary: 'Get collection details by ID' })
   @ApiParam({ name: 'id', description: 'Collection ID' })
   @ApiResponse({ status: 200, description: 'Collection details' })
   @ApiResponse({ status: 404, description: 'Collection not found' })

@@ -7,6 +7,7 @@ import {
   Param,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiOperation,
@@ -15,11 +16,13 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { AuditorReadOnlyGuard } from '../common/guards/auditor-read-only.guard';
 import { CreateObligationDto } from './dto/create-obligation.dto';
 import { ObligationsService } from './obligations.service';
 
 @ApiTags('Financial Obligations')
 @Controller('obligations')
+@UseGuards(AuditorReadOnlyGuard) // CPS-013: Block mutating operations from Internal Auditors
 export class ObligationsController {
   constructor(private readonly obligationsService: ObligationsService) {}
 
@@ -27,6 +30,7 @@ export class ObligationsController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new financial obligation for a member' })
   @ApiResponse({ status: 201, description: 'Obligation created successfully' })
+  @ApiResponse({ status: 403, description: 'Forbidden — Auditor cannot create obligations (CPS-013)' })
   create(@Body() dto: CreateObligationDto) {
     return this.obligationsService.create(dto);
   }

@@ -8,6 +8,7 @@ import {
   Post,
   Query,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -23,6 +24,7 @@ import {
 import { CollectionStatus } from '@prisma/client';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
+import { AuditorReadOnlyGuard } from '../common/guards/auditor-read-only.guard';
 import { CollectionsService } from './collections.service';
 import { ApplyPaymentDto } from './dto/apply-payment.dto';
 import { CreateCollectionDto } from './dto/create-collection.dto';
@@ -39,6 +41,7 @@ const proofStorage = diskStorage({
 
 @ApiTags('Collections')
 @Controller('collections')
+@UseGuards(AuditorReadOnlyGuard) // CPS-013: Block mutating operations from Internal Auditors
 export class CollectionsController {
   constructor(private readonly collectionsService: CollectionsService) {}
 
@@ -50,6 +53,7 @@ export class CollectionsController {
   @ApiOperation({ summary: 'CPS-001: Submit a payment collection' })
   @ApiResponse({ status: 201, description: 'Collection submitted successfully' })
   @ApiResponse({ status: 400, description: 'Validation failed — missing required fields' })
+  @ApiResponse({ status: 403, description: 'Forbidden — Auditor cannot submit collections (CPS-013)' })
   @ApiResponse({ status: 404, description: 'Member not found' })
   @ApiResponse({ status: 409, description: 'Duplicate payment reference' })
   submitCollection(@Body() dto: CreateCollectionDto) {
@@ -98,6 +102,17 @@ export class CollectionsController {
   }
 
   /**
+   * CPS-012 & CPS-013 — Get collection audit trail history
+   */
+  @Get('audit-logs')
+  @ApiOperation({ summary: 'CPS-012 & CPS-013: Retrieve audit trail history for collections' })
+  @ApiQuery({ name: 'collectionId', required: false, description: 'Filter by collection ID' })
+  @ApiResponse({ status: 200, description: 'List of audit logs' })
+  getAuditLogs(@Query('collectionId') collectionId?: string) {
+    return this.collectionsService.getAuditLogs(collectionId);
+  }
+
+  /**
    * CPS-005 — Check if payment reference is duplicate
    */
   @Get('check-duplicate/:ref')
@@ -120,26 +135,55 @@ export class CollectionsController {
   @ApiParam({ name: 'id', description: 'Collection ID' })
   @ApiResponse({ status: 200, description: 'Collection validated and collectionRefNo generated' })
   @ApiResponse({ status: 400, description: 'Validation failed (incomplete fields or missing proof)' })
+  @ApiResponse({ status: 403, description: 'Forbidden — Auditor cannot validate (CPS-013)' })
   @ApiResponse({ status: 409, description: 'Duplicate payment detected' })
   validateCollection(@Param('id') id: string) {
     return this.collectionsService.validateCollection(id);
   }
 
   /**
-   * CPS-006 & CPS-008 — Apply payment to financial obligation
+   * CPS-009 — Preview payment application math and exception status without posting
+   */
+  @Post(':id/preview-application')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'CPS-009: Preview payment application math & exception classification' })
+  @ApiParam({ name: 'id', description: 'Collection ID' })
+  @ApiResponse({ status: 200, description: 'Application preview details' })
+  previewApplication(
+    @Param('id') id: string,
+    @Body() dto: ApplyPaymentDto,
+  ) {
+    return this.collectionsService.previewApplication(id, dto);
+  }
+
+  /**
+   * CPS-006, CPS-008, CPS-010, CPS-011, CPS-014 — Apply payment & Post collection
    */
   @Post(':id/apply')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'CPS-006 & CPS-008: Apply payment to financial obligation and update balances' })
+  @ApiOperation({ summary: 'CPS-006, CPS-008, CPS-010, CPS-011, CPS-014: Apply payment, update balances, and post collection' })
   @ApiParam({ name: 'id', description: 'Collection ID' })
   @ApiResponse({ status: 200, description: 'Payment posted and applied successfully' })
   @ApiResponse({ status: 400, description: 'Obligation has zero balance or invalid application' })
+  @ApiResponse({ status: 403, description: 'Forbidden — Auditor cannot apply payment (CPS-013)' })
   @ApiResponse({ status: 404, description: 'Collection or obligation not found' })
   applyPayment(
     @Param('id') id: string,
     @Body() dto: ApplyPaymentDto,
   ) {
     return this.collectionsService.applyPayment(id, dto);
+  }
+
+  /**
+   * CPS-014 — Mark collection as ready for reconciliation
+   */
+  @Post(':id/reconcile-ready')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'CPS-014: Explicitly mark a posted collection as Ready for Reconciliation' })
+  @ApiParam({ name: 'id', description: 'Collection ID' })
+  @ApiResponse({ status: 200, description: 'Collection marked ready for reconciliation' })
+  markReadyForReconciliation(@Param('id') id: string) {
+    return this.collectionsService.markReadyForReconciliation(id);
   }
 
   /**
@@ -150,6 +194,7 @@ export class CollectionsController {
   @ApiOperation({ summary: 'Reject collection with reason' })
   @ApiParam({ name: 'id', description: 'Collection ID' })
   @ApiResponse({ status: 200, description: 'Collection rejected' })
+  @ApiResponse({ status: 403, description: 'Forbidden — Auditor cannot reject collection (CPS-013)' })
   rejectCollection(
     @Param('id') id: string,
     @Body() dto: RejectCollectionDto,
@@ -158,7 +203,7 @@ export class CollectionsController {
   }
 
   /**
-   * GET all collections
+   * GET all collections (Auditor & Treasurer accessible)
    */
   @Get()
   @ApiOperation({ summary: 'Get all collections with optional filters' })

@@ -55,7 +55,7 @@ model User {
 }
 
 // ─────────────────────────────────────────
-// FINANCIAL OBLIGATION (CPS-006, CPS-008)
+// FINANCIAL OBLIGATION (CPS-006, CPS-008, CPS-010)
 // ─────────────────────────────────────────
 
 model FinancialObligation {
@@ -65,7 +65,7 @@ model FinancialObligation {
   originalAmount     Decimal                 @db.Decimal(12, 2)
   outstandingBalance Decimal                 @db.Decimal(12, 2)
   dueDate            DateTime?
-  status             String                  @default("UNPAID") // UNPAID, PARTIALLY_PAID, PAID
+  status             String                  @default("UNPAID") // UNPAID, PARTIALLY_PAID, Fully Paid
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt
 
@@ -74,45 +74,49 @@ model FinancialObligation {
 }
 
 // ─────────────────────────────────────────
-// COLLECTION (CPS-001 through CPS-008)
+// COLLECTION (CPS-001 through CPS-014)
 // ─────────────────────────────────────────
 
 model Collection {
-  id                 String           @id @default(cuid())
+  id                      String           @id @default(cuid())
 
   // CPS-007: Unique Collection Reference Number
-  collectionRefNo    String?          @unique
+  collectionRefNo         String?          @unique
 
   // CPS-001: Required payment details
-  memberId           String
-  paymentAmount      Decimal          @db.Decimal(12, 2)
-  paymentDate        DateTime
-  paymentMethod      PaymentMethod
-  paymentReference   String
+  memberId                String
+  paymentAmount           Decimal          @db.Decimal(12, 2)
+  paymentDate             DateTime
+  paymentMethod           PaymentMethod
+  paymentReference        String
 
   // Optional notes
-  description        String?
+  description             String?
 
-  // Status (CPS-003, CPS-004, CPS-008)
-  status             CollectionStatus @default(PENDING)
+  // Status (CPS-003, CPS-004, CPS-011)
+  status                  CollectionStatus @default(PENDING)
 
   // Rejection note
-  rejectReason       String?
+  rejectReason            String?
 
   // CPS-002: Proof of payment file
-  proofOfPaymentPath String?
-  proofOfPaymentName String?
+  proofOfPaymentPath      String?
+  proofOfPaymentName      String?
 
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  // CPS-014: Bank Reconciliation status
+  isReadyForReconciliation Boolean          @default(false)
+  reconciledAt            DateTime?
 
-  member             User                    @relation(fields: [memberId], references: [id])
-  application        CollectionApplication?
-  auditTrail         CollectionAuditLog[]
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+
+  member                  User                    @relation(fields: [memberId], references: [id])
+  application             CollectionApplication?
+  auditTrail              CollectionAuditLog[]
 }
 
 // ─────────────────────────────────────────
-// PAYMENT APPLICATION (CPS-008)
+// PAYMENT APPLICATION (CPS-008, CPS-009, CPS-010)
 // ─────────────────────────────────────────
 
 model CollectionApplication {
@@ -130,19 +134,23 @@ model CollectionApplication {
 }
 
 // ─────────────────────────────────────────
-// AUDIT LOG
+// AUDIT LOG (CPS-012)
 // ─────────────────────────────────────────
 
 model CollectionAuditLog {
-  id           String     @id @default(cuid())
-  collectionId String
-  action       String
-  actor        String     @default("Treasurer")
-  role         String     @default("Treasurer")
-  timestamp    DateTime   @default(now())
-  details      String
+  id              String     @id @default(cuid())
+  collectionId    String
+  userId          String?
+  collectionRefNo String?
+  action          String
+  previousStatus  String?
+  newStatus       String?
+  actor           String     @default("Treasurer")
+  role            String     @default("Treasurer")
+  timestamp       DateTime   @default(now())
+  details         String
 
-  collection   Collection @relation(fields: [collectionId], references: [id])
+  collection      Collection @relation(fields: [collectionId], references: [id])
 }
 
 // ─────────────────────────────────────────

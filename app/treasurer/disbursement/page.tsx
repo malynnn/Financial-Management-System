@@ -47,6 +47,7 @@ export default function TreasurerDisbursementPage() {
   }
 
   const [disbursements, setDisbursements] = useState<any[]>(MOCK_DISBURSEMENTS);
+  const [isLoading, setIsLoading] = useState(false);
   
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -62,6 +63,28 @@ export default function TreasurerDisbursementPage() {
   
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'info' | 'error' } | null>(null);
 
+  // Fetch from backend API
+  const fetchDisbursementsFromApi = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch('http://localhost:3001/disbursements');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && json.data.length > 0) {
+          setDisbursements(json.data);
+        }
+      }
+    } catch {
+      // Backend not running or unreachable, fallback to state
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDisbursementsFromApi();
+  }, []);
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchInput), 300);
     return () => clearTimeout(timer);
@@ -74,6 +97,30 @@ export default function TreasurerDisbursementPage() {
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
+  };
+
+  const handleRequestSuccess = (newDisb: any) => {
+    setDisbursements(prev => [newDisb, ...prev]);
+    showToast('Disbursement request successfully initiated.', 'success');
+    fetchDisbursementsFromApi();
+  };
+
+  const handleActionSuccess = (id: string, newStatus: string, executionRef?: string) => {
+    setDisbursements(prev => prev.map(d => {
+      if (d.id === id) {
+        const newLog = {
+          id: `at-new-${Date.now()}`,
+          action: newStatus === 'Approved' ? 'Request Approved' : newStatus === 'Rejected' ? 'Request Rejected' : 'Payment Executed',
+          actor: newStatus === 'Approved' ? 'Admin Approver' : 'Treasurer',
+          role: newStatus === 'Approved' ? 'Approver' : 'Processor',
+          timestamp: new Date().toISOString(),
+          details: newStatus === 'Executed' ? `Funds released with reference ${executionRef}.` : `Status updated to ${newStatus}.`
+        };
+        return { ...d, status: newStatus, executionRef, auditTrail: [...d.auditTrail, newLog] };
+      }
+      return d;
+    }));
+    showToast(`Disbursement successfully updated to ${newStatus}.`, 'success');
   };
 
   const filteredDisbursements = useMemo(() => {
@@ -95,29 +142,6 @@ export default function TreasurerDisbursementPage() {
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
-
-  const handleRequestSuccess = (newDisb: any) => {
-    setDisbursements(prev => [newDisb, ...prev]);
-    showToast('Disbursement request successfully initiated.', 'success');
-  };
-
-  const handleActionSuccess = (id: string, newStatus: string, executionRef?: string) => {
-    setDisbursements(prev => prev.map(d => {
-      if (d.id === id) {
-        const newLog = {
-          id: `at-new-${Date.now()}`,
-          action: newStatus === 'Approved' ? 'Request Approved' : newStatus === 'Rejected' ? 'Request Rejected' : 'Payment Executed',
-          actor: newStatus === 'Approved' ? 'Admin Approver' : 'Treasurer',
-          role: newStatus === 'Approved' ? 'Approver' : 'Processor',
-          timestamp: new Date().toISOString(),
-          details: newStatus === 'Executed' ? `Funds released with reference ${executionRef}.` : `Status updated to ${newStatus}.`
-        };
-        return { ...d, status: newStatus, executionRef, auditTrail: [...d.auditTrail, newLog] };
-      }
-      return d;
-    }));
-    showToast(`Disbursement successfully updated to ${newStatus}.`, 'success');
-  };
 
   const formatCurrency = (val: number) => `₱${val.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
@@ -249,12 +273,16 @@ export default function TreasurerDisbursementPage() {
                         <td className="py-4 px-6 text-center">{getStatusBadge(disb.status)}</td>
                         
                         <td className="py-4 px-6 text-center">
-                          {disb.status === 'Executed' && disb.executionRef ? (
-                            <div className="flex items-center justify-center gap-1.5 text-emerald-600 bg-emerald-50/50 border border-emerald-100 px-2 py-1 rounded-full text-[10px] uppercase tracking-widest mx-auto w-fit">
+                          {disb.reconciledAt ? (
+                            <div className="flex items-center justify-center gap-1.5 text-blue-600 bg-blue-50/50 border border-blue-100 px-2.5 py-1 rounded-full text-[10px] uppercase tracking-widest mx-auto w-fit font-semibold">
+                              <CheckCircle2 size={12} /> Reconciled
+                            </div>
+                          ) : disb.isReadyForReconciliation || (disb.status === 'Executed' && disb.executionRef) ? (
+                            <div className="flex items-center justify-center gap-1.5 text-emerald-600 bg-emerald-50/50 border border-emerald-100 px-2.5 py-1 rounded-full text-[10px] uppercase tracking-widest mx-auto w-fit font-semibold">
                               <CheckCircle2 size={12} /> Ready
                             </div>
                           ) : (
-                            <span className="text-[10px] text-[#04152d]/30 uppercase tracking-widest">-</span>
+                            <span className="text-[10px] text-[#04152d]/40 uppercase tracking-widest">Pending Exec</span>
                           )}
                         </td>
 

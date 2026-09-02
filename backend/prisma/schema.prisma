@@ -35,6 +35,13 @@ enum CollectionStatus {
   VERIFIED
 }
 
+enum DisbursementStatus {
+  PENDING_APPROVAL
+  APPROVED
+  EXECUTED
+  REJECTED
+}
+
 // ─────────────────────────────────────────
 // USER / AUTH
 // ─────────────────────────────────────────
@@ -55,22 +62,34 @@ model User {
 }
 
 // ─────────────────────────────────────────
-// FINANCIAL OBLIGATION (CPS-006, CPS-008, CPS-010)
+// FINANCIAL OBLIGATION & LOAN (DMP-001, DMP-004, DMP-005, DMP-007)
 // ─────────────────────────────────────────
 
 model FinancialObligation {
-  id                 String                  @id @default(cuid())
-  memberId           String
-  obligationType     String                  // e.g. "Annual Dues", "Emergency Loan"
-  originalAmount     Decimal                 @db.Decimal(12, 2)
-  outstandingBalance Decimal                 @db.Decimal(12, 2)
-  dueDate            DateTime?
-  status             String                  @default("UNPAID") // UNPAID, PARTIALLY_PAID, Fully Paid
-  createdAt          DateTime                @default(now())
-  updatedAt          DateTime                @updatedAt
+  id                  String                  @id @default(cuid())
+  memberId            String
+  obligationType      String                  // e.g. "Annual Dues", "Emergency Loan", "Educational Loan", "Calamity Loan"
+  originalAmount      Decimal                 @db.Decimal(12, 2)
+  outstandingBalance  Decimal                 @db.Decimal(12, 2)
+  dueDate             DateTime?
+  status              String                  @default("UNPAID") // UNPAID, PARTIALLY_PAID, Fully Paid
 
-  member             User                    @relation(fields: [memberId], references: [id])
-  applications       CollectionApplication[]
+  // DMP Loan & Disbursement Support
+  loanStatus          String?                 @default("Approved") // Pending, Approved, Disbursed, Rejected
+  approvedAmount      Decimal?                @db.Decimal(12, 2)
+  disbursedAmount     Decimal?                @default(0) @db.Decimal(12, 2)
+  remainingLoanAmount Decimal?                @db.Decimal(12, 2)
+  beneficiaryName     String?
+  beneficiaryBank     String?
+  beneficiaryAccount  String?
+  fundSource          String?                 @default("General Fund")
+
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  member              User                    @relation(fields: [memberId], references: [id])
+  applications        CollectionApplication[]
+  disbursements       Disbursement[]
 }
 
 // ─────────────────────────────────────────
@@ -154,19 +173,71 @@ model CollectionAuditLog {
 }
 
 // ─────────────────────────────────────────
-// DISBURSEMENT
+// FUND ACCOUNT (DMP-006, DMP-007)
+// ─────────────────────────────────────────
+
+model FundAccount {
+  id               String   @id @default(cuid())
+  name             String   @unique // e.g. "General Fund", "Emergency Fund", "Educational Fund", "Calamity Fund"
+  totalBalance     Decimal  @db.Decimal(14, 2)
+  availableBalance Decimal  @db.Decimal(14, 2)
+  reservedBalance  Decimal  @default(0) @db.Decimal(14, 2)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────
+// DISBURSEMENT (DMP-001 through DMP-007)
 // ─────────────────────────────────────────
 
 model Disbursement {
-  id          String   @id @default(cuid())
-  amount      Decimal  @db.Decimal(12, 2)
-  description String?
-  date        DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 String             @id @default(cuid())
+  disbursementRefNo  String?            @unique // e.g. "REQ-2026-0001"
+  obligationId       String?
+  memberId           String
+  amount             Decimal            @db.Decimal(12, 2)
+  fundSource         String             @default("General Fund")
+  paymentMethod      PaymentMethod      @default(BANK_TRANSFER)
+  beneficiaryName    String
+  beneficiaryBank    String?
+  beneficiaryAccount String?
+  description        String?
+  status             DisbursementStatus @default(PENDING_APPROVAL)
+  rejectionReason    String?
+  executionRefNo     String?            // e.g. "PAY-991001"
 
-  disbursedById String
-  disbursedBy   User   @relation(fields: [disbursedById], references: [id])
+  // DMP-014: Bank Reconciliation Readiness
+  isReadyForReconciliation Boolean        @default(false)
+  reconciledAt            DateTime?
+
+  date               DateTime           @default(now())
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  disbursedById      String?
+  disbursedBy        User?              @relation(fields: [disbursedById], references: [id])
+  obligation         FinancialObligation? @relation(fields: [obligationId], references: [id])
+  auditTrail         DisbursementAuditLog[]
+}
+
+// ─────────────────────────────────────────
+// DISBURSEMENT AUDIT LOG
+// ─────────────────────────────────────────
+
+model DisbursementAuditLog {
+  id                String       @id @default(cuid())
+  disbursementId    String
+  userId            String?
+  disbursementRefNo String?
+  action            String
+  previousStatus    String?
+  newStatus         String?
+  actor             String       @default("Treasurer")
+  role              String       @default("Treasurer")
+  timestamp         DateTime     @default(now())
+  details           String
+
+  disbursement      Disbursement @relation(fields: [disbursementId], references: [id])
 }
 
 // ─────────────────────────────────────────

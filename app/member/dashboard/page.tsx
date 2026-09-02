@@ -5,8 +5,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { 
   Wallet, Receipt, ArrowUpRight, Plus, CheckCircle2, 
-  AlertCircle, Clock, FileText, XCircle, Info, RefreshCw,
-  ExternalLink, Calendar, CreditCard, ShieldCheck, ChevronRight
+  AlertCircle, Clock, FileText, ExternalLink, Calendar, CreditCard, ShieldCheck, ChevronRight, Info
 } from 'lucide-react';
 import Header from '@/components/Header';
 
@@ -68,7 +67,6 @@ export default function MemberDashboardPage() {
   const [obligations, setObligations] = useState<Obligation[]>([]);
   const [collections, setCollections] = useState<CollectionItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Loan Request Modal State
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
@@ -110,18 +108,12 @@ export default function MemberDashboardPage() {
       // Offline fallback: Use initial mock state if server unreachable
     } finally {
       setIsLoading(false);
-      setIsRefreshing(false);
     }
   };
 
   useEffect(() => {
     fetchData();
   }, [memberId]);
-
-  const handleManualRefresh = () => {
-    setIsRefreshing(true);
-    fetchData();
-  };
 
   const handleLoanSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,30 +197,16 @@ export default function MemberDashboardPage() {
         
         {/* Welcome & Action Bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-[22px] font-black text-[#04152d] tracking-tight">
-                Hello, {memberName}
-              </h2>
-              <span className="px-2.5 py-0.5 bg-blue-100/70 border border-blue-200 text-blue-700 text-[10px] font-black uppercase tracking-widest rounded-full">
-                Member Portal
-              </span>
-            </div>
-            <p className="text-[12.5px] font-medium text-[#04152d]/60 mt-0.5">
-              Member ID: <span className="font-bold text-[#04152d]">{memberId}</span> — Real-time account summary and financial activities.
+          <div className="flex flex-col gap-0.5">
+            <h2 className="text-[22px] font-black text-[#04152d] tracking-tight">
+              Hello, {memberName}
+            </h2>
+            <p className="text-[12.5px] font-medium text-[#04152d]/60">
+              Member ID: <span className="font-bold text-[#04152d]">{memberId}</span>
             </p>
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={handleManualRefresh}
-              disabled={isRefreshing}
-              className="p-2.5 bg-white/70 hover:bg-white text-[#04152d] border border-white/80 rounded-full shadow-sm hover:shadow transition-all active:scale-95 disabled:opacity-50"
-              title="Refresh Data"
-            >
-              <RefreshCw size={15} className={isRefreshing ? "animate-spin text-blue-600" : "text-[#04152d]/60"} />
-            </button>
-
             <button
               onClick={() => setIsLoanModalOpen(true)}
               className="px-4 py-2.5 bg-white/80 hover:bg-white text-blue-600 border border-blue-200/80 shadow-[0_2px_8px_rgba(37,99,235,0.08)] hover:shadow-md rounded-full text-[12px] font-bold tracking-wide transition-all active:scale-95 flex items-center gap-1.5"

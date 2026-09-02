@@ -6,8 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   UploadCloud, AlertCircle, CheckCircle2, 
-  Send, Loader2, FileText, X, ChevronDown, User, Calendar, Receipt, CreditCard,
-  ArrowLeft, Info, ExternalLink
+  Send, Loader2, FileText, X, ChevronDown, User, Calendar, Receipt, CreditCard, Info, ExternalLink
 } from 'lucide-react';
 import Header from '@/components/Header';
 
@@ -68,7 +67,6 @@ function CollectionFormContent() {
     }
   }, [session]);
 
-  // Fetch active obligations for this member
   useEffect(() => {
     const fetchObligations = async () => {
       try {
@@ -175,7 +173,6 @@ function CollectionFormContent() {
     setIsSubmitting(true);
     setErrorMessage(null);
 
-    // Map UI payment method string to Prisma enum
     let mappedMethod = 'GCASH';
     if (paymentMethod === 'Bank Transfer') mappedMethod = 'BANK_TRANSFER';
     else if (paymentMethod === 'Over-the-Counter') mappedMethod = 'CASH';
@@ -183,7 +180,6 @@ function CollectionFormContent() {
     else if (paymentMethod === 'Salary Deduction') mappedMethod = 'OTHER';
 
     try {
-      // 1. Submit Collection to Backend
       const res = await fetch('http://localhost:3001/collections', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -204,7 +200,6 @@ function CollectionFormContent() {
 
       const collection = await res.json();
 
-      // 2. Upload Proof of Payment (CPS-002)
       if (proofFile) {
         const formData = new FormData();
         formData.append('file', proofFile);
@@ -232,7 +227,6 @@ function CollectionFormContent() {
         }
       }
 
-      // Reset form fields
       setReference('');
       setDescription('');
       clearFile();
@@ -254,19 +248,6 @@ function CollectionFormContent() {
       </div>
 
       <div className="p-4 md:p-6 max-w-[1200px] w-full mx-auto animate-fade-in flex-1 relative z-10">
-        
-        {/* Navigation Breadcrumb */}
-        <div className="flex items-center justify-between mb-4">
-          <Link
-            href="/member/dashboard"
-            className="text-[12px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1.5 transition-colors"
-          >
-            <ArrowLeft size={14} /> Back to My Summary
-          </Link>
-          <span className="text-[11px] font-bold text-[#04152d]/50 uppercase tracking-widest">
-            Collection Processing Form
-          </span>
-        </div>
 
         {/* Success Alert */}
         {submissionResult && (

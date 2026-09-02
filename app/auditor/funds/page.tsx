@@ -2,10 +2,20 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
-  Search, ChevronDown, ChevronLeft, ChevronRight, Activity, Calendar, AlertCircle, FileText, PieChart, CheckCircle2, SearchX
+  Search, ChevronDown, ChevronLeft, ChevronRight, Activity, Calendar, AlertCircle, FileText, PieChart, CheckCircle2, Shield, Banknote, PowerOff, SearchX
 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ResponsiveContainer, Cell } from 'recharts';
 import Header from '@/components/Header';
 import FundFinancialSummaryModal from '@/components/funds/FundFinancialSummaryModal';
+
+const MOCK_ALL_FUNDS = [
+  { id: 'FND-001', name: 'Union Fund', code: 'UNF', balance: 500000, targetUtilization: 80, status: 'Active' },
+  { id: 'FND-002', name: 'General Fund', code: 'GEN', balance: 250000, targetUtilization: 75, status: 'Active' },
+  { id: 'FND-003', name: 'Death Assistance Fund', code: 'DAF', balance: 150000, targetUtilization: 50, status: 'Active' },
+  { id: 'FND-005', name: 'Loan Fund', code: 'LNF', balance: 850000, targetUtilization: 90, status: 'Active' },
+  { id: 'FND-006', name: 'Calamity Fund', code: 'CAL', balance: 300000, targetUtilization: 60, status: 'Active' },
+  { id: 'FND-008', name: 'Legal Defense Fund', code: 'LDF', balance: 95000, targetUtilization: 30, status: 'Inactive' },
+];
 
 const MOCK_ACTIVE_FUNDS = [
   { id: 'FND-001', name: 'Union Fund', code: 'UNF', balance: 500000, pendingDisbursements: 25000, currentUtilization: 45 },
@@ -31,8 +41,9 @@ const MOCK_TRANSACTIONS = Array.from({ length: 45 }).map((_, i) => {
 });
 
 const ITEMS_PER_PAGE = 10;
+const CHART_COLORS = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#1d4ed8', '#1e40af'];
 
-export default function TreasurerFundMonitoringPage() {
+export default function AuditorFundOversightPage() {
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [fundFilter, setFundFilter] = useState('All');
@@ -75,6 +86,17 @@ export default function TreasurerFundMonitoringPage() {
     currentPage * ITEMS_PER_PAGE
   );
 
+  const totalSystemBalance = MOCK_ALL_FUNDS.reduce((sum, f) => sum + f.balance, 0);
+  const activeFundsCount = MOCK_ALL_FUNDS.filter(f => f.status === 'Active').length;
+  
+  const chartData = useMemo(() => {
+    return MOCK_ALL_FUNDS.filter(f => f.status === 'Active').map(f => ({
+      name: f.code,
+      fullName: f.name,
+      balance: f.balance
+    }));
+  }, []);
+
   const formatCurrency = (val: number) => `₱${val.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
   const getPageNumbers = () => {
@@ -109,6 +131,57 @@ export default function TreasurerFundMonitoringPage() {
 
       <div className="p-4 md:p-6 max-w-[1400px] w-full mx-auto animate-fade-in flex-1 relative z-10 space-y-6 mt-2">
         
+        <div className="flex flex-col xl:flex-row items-stretch gap-6">
+          <div className="flex flex-col gap-4 w-full xl:w-1/3">
+            <div className={`flex-1 flex items-center gap-4 ${ultraGlassCard} !p-5`}>
+              <div className="w-12 h-12 bg-white/90 border border-white rounded-[16px] shadow-sm flex items-center justify-center shrink-0">
+                <Banknote size={24} className="text-blue-600" />
+              </div>
+              <div>
+                <span className="block text-[11px] font-semibold text-[#04152d]/50 uppercase tracking-widest">Total Master Ledger Balance</span>
+                <span className="block text-[24px] font-semibold text-[#04152d] tracking-tighter mt-0.5">{formatCurrency(totalSystemBalance)}</span>
+              </div>
+            </div>
+            
+            <div className="flex-1 grid grid-cols-2 gap-4">
+              <div className={`h-full flex flex-col justify-center ${ultraGlassCard} !p-5`}>
+                <span className="block text-[10px] font-semibold text-[#04152d]/50 uppercase tracking-widest mb-1 flex items-center gap-1.5"><Activity size={12}/> Active Funds</span>
+                <span className="block text-[28px] font-semibold text-emerald-600 tracking-tighter leading-none">{activeFundsCount}</span>
+              </div>
+              <div className={`h-full flex flex-col justify-center ${ultraGlassCard} !p-5`}>
+                <span className="block text-[10px] font-semibold text-[#04152d]/50 uppercase tracking-widest mb-1 flex items-center gap-1.5"><PowerOff size={12}/> Inactive</span>
+                <span className="block text-[28px] font-semibold text-gray-500 tracking-tighter leading-none">{MOCK_ALL_FUNDS.length - activeFundsCount}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className={`flex-1 ${ultraGlassCard} !p-5 flex flex-col`}>
+            <h3 className="text-[13px] font-semibold text-[#04152d] uppercase tracking-widest border-b border-white/60 pb-2 mb-4 shrink-0 flex items-center gap-2">
+              <Activity size={16} className="text-blue-500"/> Active Fund Distribution
+            </h3>
+            <div className="flex-1 w-full min-h-[160px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(4,21,45,0.06)" />
+                  <XAxis dataKey="name" stroke="#04152d" opacity={0.5} fontSize={11} tickLine={false} fontWeight="bold" />
+                  <YAxis stroke="#04152d" opacity={0.5} fontSize={11} tickLine={false} fontWeight="bold" tickFormatter={(v) => `₱${(v/1000).toFixed(0)}k`} />
+                  <ChartTooltip 
+                    cursor={{ fill: 'rgba(37,99,235,0.05)' }}
+                    formatter={(value: any, name: any) => [`₱${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 'Current Balance']}
+                    labelFormatter={(label, payload) => payload[0]?.payload.fullName || label}
+                    contentStyle={{ backgroundColor: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)', borderRadius: '12px', border: '1px solid rgba(255,255,255,1)', boxShadow: '0 8px 30px rgba(4,21,45,0.08)', fontSize: '12px', fontWeight: 'bold' }}
+                  />
+                  <Bar dataKey="balance" radius={[6, 6, 0, 0]} maxBarSize={60}>
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {MOCK_ACTIVE_FUNDS.map((fund) => {
             const isInsufficient = fund.pendingDisbursements > fund.balance;
@@ -206,7 +279,7 @@ export default function TreasurerFundMonitoringPage() {
                   <input 
                     type="date" 
                     value={startDate} 
-                    max={endDate || undefined} 
+                    max={endDate || undefined} // Strict Date Constraint
                     onChange={(e) => setStartDate(e.target.value)} 
                     className="bg-transparent text-[12px] font-semibold text-[#04152d] outline-none w-28 [&::-webkit-calendar-picker-indicator]:opacity-50 cursor-pointer" 
                   />
@@ -214,7 +287,7 @@ export default function TreasurerFundMonitoringPage() {
                   <input 
                     type="date" 
                     value={endDate} 
-                    min={startDate || undefined} 
+                    min={startDate || undefined} // Strict Date Constraint
                     onChange={(e) => setEndDate(e.target.value)} 
                     className="bg-transparent text-[12px] font-semibold text-[#04152d] outline-none w-28 [&::-webkit-calendar-picker-indicator]:opacity-50 cursor-pointer" 
                   />

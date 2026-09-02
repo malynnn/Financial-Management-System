@@ -62,6 +62,10 @@ export default function Sidebar() {
         { label: 'My Summary', href: '/member/dashboard', icon: PieChart, roles: ['User'] },
         { label: 'Collection Processing', href: '/member/collections', icon: UploadCloud, roles: ['User'] },
 
+        { label: 'User Management', href: '/admin/dashboard', icon: Users, roles: ['Officer/Admin'] },
+        { label: 'Fund Master', href: '/admin/funds', icon: Briefcase, roles: ['Officer/Admin'] },
+        { label: 'Settings', href: '/admin/settings', icon: Settings, roles: ['Officer/Admin'] },
+
         { label: 'Dashboard', href: '/treasurer/dashboard', icon: LayoutDashboard, roles: ['Treasurer'] },
         { label: 'Collections', href: '/treasurer/collections', icon: WalletCards, roles: ['Treasurer'] },
         { label: 'Disbursement', href: '/treasurer/disbursement', icon: Send, roles: ['Treasurer'] },
@@ -71,6 +75,7 @@ export default function Sidebar() {
         { label: 'Audit Overview', href: '/auditor/collections', icon: ClipboardList, roles: ['Auditor'] },
         { label: 'Collections', href: '/auditor/collections', icon: FileText, roles: ['Auditor'] },
         { label: 'Disbursement', href: '/auditor/disbursement', icon: Send, roles: ['Auditor'] },
+        { label: 'Funds', href: '/auditor/funds', icon: Briefcase, roles: ['Auditor'] },
       ]
     },
   ];
@@ -200,7 +205,7 @@ export default function Sidebar() {
 
               <div className="flex flex-col space-y-2 mt-4">
                 {!isCollapsed ? (
-                  <p className="text-[10px] font-semibold text-white/30 uppercase tracking-[0.25em] mb-1 px-2 drop-shadow-sm">Financial System</p>
+                  <p className="text-[10px] font-semibold text-white/30 uppercase tracking-[0.25em] mb-1 px-2 drop-shadow-sm">Financial Management System</p>
                 ) : (
                   <div className="h-px bg-white/10 w-8 mx-auto my-4" />
                 )}

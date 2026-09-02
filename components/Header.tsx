@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { Bell, Settings, LogOut, User } from 'lucide-react';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import ActionModal from '@/components/ActionModal';
 
 interface Props {
@@ -30,13 +30,15 @@ const PAGE_TITLES: Record<string, string> = {
   '/treasurer/dashboard':     'Dashboard',
   '/treasurer/collections':   'Collections',
   '/treasurer/disbursement':  'Disbursement Processing',
-  '/treasurer/funds':         'Funds',
+  '/treasurer/funds':         'Funds Dashboard',
   '/treasurer/forecasting':   'Forecasting',
   '/admin/dashboard':         'User Management',
+  '/admin/funds':             'Fund Master',
   '/admin/settings':          'Settings',
   '/auditor/dashboard':       'Audit Oversight',
   '/auditor/collections':     'Collections',
   '/auditor/disbursement':    'Disbursement Oversight',
+  '/auditor/funds':           'Fund Oversight',
   '/profile':                 'Settings',
   '/events':                  'Events',
   '/documents':               'Documents',
@@ -48,11 +50,9 @@ function HeaderContent({ unreadCount = 0 }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { data: session } = useSession();
   
   const [panelOpen, setPanelOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
 
@@ -106,7 +106,6 @@ function HeaderContent({ unreadCount = 0 }: Props) {
   useEffect(() => { 
     setPanelOpen(false); 
     setSettingsOpen(false);
-    setRoleMenuOpen(false);
   }, [pathname]);
 
   const triggerLogout = () => {
@@ -181,45 +180,6 @@ function HeaderContent({ unreadCount = 0 }: Props) {
                   </span>
                 )}
               </button>
-            </div>
-
-            {/* Quick Role Switcher for Pair-Testing Cross-Role Hand-Offs */}
-            <div className="relative">
-              <button
-                onClick={() => setRoleMenuOpen(o => !o)}
-                className="flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border border-blue-200/80 rounded-full text-[11px] font-bold text-blue-700 shadow-sm transition-all active:scale-95"
-                title="Switch active role for testing"
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="uppercase tracking-wider font-extrabold">{session?.user ? (session.user as any).role || 'Member' : 'Switch Role'}</span>
-              </button>
-
-              {roleMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-white/95 backdrop-blur-2xl border border-white shadow-[0_8px_32px_rgba(4,21,45,0.15)] rounded-[20px] p-2 flex flex-col z-[110] animate-in fade-in zoom-in-95 duration-200">
-                  <div className="px-3 py-1.5 border-b border-[#04152d]/10 mb-1">
-                    <p className="text-[10px] font-black text-[#04152d]/50 uppercase tracking-widest">Switch Testing Role</p>
-                  </div>
-                  {[
-                    { label: 'Member (Juan Dela Cruz)', email: 'member@fms.com', route: '/member/dashboard' },
-                    { label: 'Treasurer (Maria Santos)', email: 'treasurer@fms.com', route: '/treasurer/dashboard' },
-                    { label: 'Auditor (Audit Inspector)', email: 'auditor@fms.com', route: '/auditor/collections' },
-                    { label: 'Admin (Officer)', email: 'admin@fms.com', route: '/admin/dashboard' },
-                  ].map((roleItem) => (
-                    <button
-                      key={roleItem.email}
-                      onClick={async () => {
-                        setRoleMenuOpen(false);
-                        await signIn('credentials', { email: roleItem.email, password: 'password123', redirect: false });
-                        router.push(roleItem.route);
-                        router.refresh();
-                      }}
-                      className="flex items-center justify-between px-3 py-2 rounded-[12px] text-[12px] font-bold text-[#04152d] hover:bg-blue-50 hover:text-blue-600 transition-colors text-left w-full"
-                    >
-                      <span>{roleItem.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
 
             <div className="relative" ref={settingsRef}>

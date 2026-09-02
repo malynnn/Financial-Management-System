@@ -51,6 +51,7 @@ const ITEMS_PER_PAGE = 10;
 
 export default function TreasurerCollectionsPage() {
   const [collections, setCollections] = useState<any[]>(MOCK_COLLECTIONS);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Standard Filters
   const [searchInput, setSearchInput] = useState('');
@@ -58,7 +59,7 @@ export default function TreasurerCollectionsPage() {
   const [statusFilter, setStatusFilter] = useState('Requires Action');
   const [methodFilter, setMethodFilter] = useState('All');
   
-  // Missing Task 13 Implementation: Date Range Filter
+  // Date Range Filter
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   
@@ -66,6 +67,69 @@ export default function TreasurerCollectionsPage() {
   const [selectedCollection, setSelectedCollection] = useState<any | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'info' | 'error' } | null>(null);
+
+  const fetchCollectionsFromApi = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch('http://localhost:3001/collections');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const mapped = data.map((c: any) => {
+            let status = 'Pending';
+            if (c.status === 'POSTED') status = 'Posted';
+            else if (c.status === 'REJECTED') status = 'Rejected';
+            else if (c.status === 'FOR_VERIFICATION') status = 'For Verification';
+            else if (c.status === 'VALIDATED') status = 'For Verification';
+
+            let method = 'GCash';
+            if (c.paymentMethod === 'BANK_TRANSFER') method = 'Bank Transfer';
+            else if (c.paymentMethod === 'CASH') method = 'Over-the-Counter';
+            else if (c.paymentMethod === 'GCASH') method = 'GCash';
+
+            return {
+              id: c.id,
+              ref: c.collectionRefNo || c.paymentReference,
+              memberId: c.memberId,
+              memberName: c.member?.name || 'Member',
+              amount: Number(c.paymentAmount),
+              date: new Date(c.paymentDate).toISOString().split('T')[0],
+              method,
+              paymentRef: c.paymentReference,
+              proofUrl: c.proofOfPaymentPath ? `http://localhost:3001/${c.proofOfPaymentPath}` : '#',
+              status,
+              isReconciled: c.isReadyForReconciliation,
+              rejectReason: c.rejectReason,
+              applicationData: c.application ? {
+                obligationType: c.application.obligation?.obligationType || 'General Obligation',
+                originalBalance: Number(c.application.originalBalance),
+                appliedAmount: Number(c.application.appliedAmount),
+                remainingBalance: Number(c.application.remainingBalance),
+                exceptionStatus: c.application.exceptionStatus,
+              } : undefined,
+              auditTrail: c.auditTrail ? c.auditTrail.map((at: any) => ({
+                id: at.id,
+                action: at.action,
+                actor: at.actor,
+                role: at.role,
+                timestamp: at.timestamp,
+                details: at.details,
+              })) : [],
+            };
+          });
+          setCollections(mapped);
+        }
+      }
+    } catch {
+      // Fallback to initial state
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCollectionsFromApi();
+  }, []);
 
   // Debounce the search input by 300ms
   useEffect(() => {
@@ -118,6 +182,7 @@ export default function TreasurerCollectionsPage() {
     ));
     if (newStatus === 'Posted') showToast('Collection successfully posted and applied to records.', 'success');
     else if (newStatus === 'Rejected') showToast('Collection rejected and flagged for member review.', 'error');
+    fetchCollectionsFromApi();
   };
 
   const formatCurrency = (val: number) => `₱${val.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;

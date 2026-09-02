@@ -59,16 +59,16 @@ export default function Sidebar() {
       icon: Book,
       roles: ['User', 'Officer/Admin', 'Treasurer', 'Auditor'],
       subItems: [
-        { label: '(N/A) My Summary', href: '/member/dashboard', icon: PieChart, roles: ['User'] },
+        { label: 'My Summary', href: '/member/dashboard', icon: PieChart, roles: ['User'] },
         { label: 'Collection Processing', href: '/member/collections', icon: UploadCloud, roles: ['User'] },
 
-        { label: '(From PM) Dashboard', href: '/treasurer/dashboard', icon: LayoutDashboard, roles: ['Treasurer'] },
+        { label: 'Dashboard', href: '/treasurer/dashboard', icon: LayoutDashboard, roles: ['Treasurer'] },
         { label: 'Collections', href: '/treasurer/collections', icon: WalletCards, roles: ['Treasurer'] },
         { label: 'Disbursement', href: '/treasurer/disbursement', icon: Send, roles: ['Treasurer'] },
-        { label: '(From PM) Funds', href: '/treasurer/funds', icon: Briefcase, roles: ['Treasurer'] },
-        { label: '(From PM) Forecasting', href: '/treasurer/forecasting', icon: Activity, roles: ['Treasurer'] },
+        { label: 'Funds', href: '/treasurer/funds', icon: Briefcase, roles: ['Treasurer'] },
+        { label: 'Forecasting', href: '/treasurer/forecasting', icon: Activity, roles: ['Treasurer'] },
         
-        { label: '(N/A) Audit Dashboard', href: '/auditor/dashboard', icon: ClipboardList, roles: ['Auditor'] },
+        { label: 'Audit Overview', href: '/auditor/collections', icon: ClipboardList, roles: ['Auditor'] },
         { label: 'Collections', href: '/auditor/collections', icon: FileText, roles: ['Auditor'] },
         { label: 'Disbursement', href: '/auditor/disbursement', icon: Send, roles: ['Auditor'] },
       ]

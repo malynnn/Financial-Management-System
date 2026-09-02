@@ -23,4 +23,35 @@ export class CreateObligationDto {
   @IsOptional()
   @IsDateString()
   dueDate?: string;
+
+  @ApiPropertyOptional({ description: 'Loan status (e.g. Pending, Approved)', example: 'Approved' })
+  @IsOptional()
+  @IsString()
+  loanStatus?: string;
+
+  @ApiPropertyOptional({ description: 'Approved loan amount', example: 5000.0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  approvedAmount?: number;
+
+  @ApiPropertyOptional({ description: 'Beneficiary Name', example: 'Juan Dela Cruz' })
+  @IsOptional()
+  @IsString()
+  beneficiaryName?: string;
+
+  @ApiPropertyOptional({ description: 'Beneficiary Bank', example: 'BDO' })
+  @IsOptional()
+  @IsString()
+  beneficiaryBank?: string;
+
+  @ApiPropertyOptional({ description: 'Beneficiary Account Number', example: '00123456789' })
+  @IsOptional()
+  @IsString()
+  beneficiaryAccount?: string;
+
+  @ApiPropertyOptional({ description: 'Fund source', example: 'General Fund' })
+  @IsOptional()
+  @IsString()
+  fundSource?: string;
 }

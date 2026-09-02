@@ -2,11 +2,25 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { Transport, MicroserviceOptions } from '@nestjs/microservices';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  // Ensure upload directory exists
+  const uploadDir = join(process.cwd(), 'uploads', 'proofs');
+  if (!existsSync(uploadDir)) {
+    mkdirSync(uploadDir, { recursive: true });
+  }
+
   // Create hybrid app: HTTP gateway + TCP microservice listener
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Serve static assets from uploads directory
+  app.useStaticAssets(join(process.cwd(), 'uploads'), {
+    prefix: '/uploads',
+  });
 
   // Enable CORS for the Next.js frontend
   app.enableCors({

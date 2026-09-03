@@ -341,7 +341,6 @@ export default function AuditorFundOversightPage() {
                     )}
                   </>
                 ) : (
-                  // Premium Empty State
                   <tr>
                     <td colSpan={6} className="py-20 text-center">
                       <div className="flex flex-col items-center justify-center space-y-3">

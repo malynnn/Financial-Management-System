@@ -62,7 +62,6 @@ export default function ForecastGenerationModal({
       onClose();
     } catch (err: any) {
       console.warn('Backend forecasting request failed, falling back to simulated completion:', err);
-      // Fallback for offline demo mode
       setTimeout(() => {
         setIsGenerating(false);
         setLoadingStep(0);
@@ -110,7 +109,7 @@ export default function ForecastGenerationModal({
                 : 'Pandas Forecasting Engine Ready'}
             </h4>
             
-            {/* Modal Purpose & Scope Definitions */}
+            {/* modal purpose & scope definitions */}
             {!isGenerating && (
               <div className="mt-4 w-full bg-white/60 rounded-[12px] p-3 text-left border border-white/80">
                 <p className="text-[10px] font-semibold text-[#04152d]/50 uppercase tracking-widest mb-2 border-b border-[#04152d]/10 pb-1">Data Scope Parameters</p>

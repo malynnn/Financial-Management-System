@@ -202,13 +202,13 @@ export default function FundActionModal({ isOpen, onClose, fund, existingFunds, 
 
             <div>
               <label className={labelStyle}>Fund Name <span className="text-red-500 text-[14px] leading-none">*</span></label>
-              <input type="text" required disabled={isSubmitting} value={name} onChange={(e) => setName(e.target.value)} className={glassInput} placeholder="e.g. Union Fund" />
+              <input type="text" required disabled={isSubmitting} value={name} onChange={(e) => setName(e.target.value)} className={glassInput} placeholder="Example: Union Fund" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelStyle}>Fund Code <span className="text-red-500 text-[14px] leading-none">*</span></label>
-                <input type="text" maxLength={4} required disabled={isSubmitting} value={code} onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} className={`${glassInput} uppercase`} placeholder="e.g. UNF" />
+                <input type="text" maxLength={4} required disabled={isSubmitting} value={code} onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} className={`${glassInput} uppercase`} placeholder="Example: UNF" />
               </div>
               <div>
                 <label className={labelStyle}>Target Utilization <span className="text-red-500 text-[14px] leading-none">*</span></label>

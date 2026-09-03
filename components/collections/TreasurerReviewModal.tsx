@@ -73,7 +73,6 @@ export default function TreasurerReviewModal({ isOpen, onClose, collection, onPr
       setIsProcessing(false);
       setErrorMessage(null);
 
-      // Fetch member's real active obligations from backend
       fetch(`http://localhost:3001/obligations/active/${collection.memberId}`)
         .then(res => res.ok ? res.json() : [])
         .then(data => {
@@ -213,7 +212,7 @@ export default function TreasurerReviewModal({ isOpen, onClose, collection, onPr
           </div>
         )}
 
-        {/* Tab Navigation */}
+        {/* tab nav */}
         {isCompleted && (
           <div className="flex items-center gap-4 border-b border-white/60 mb-5 px-1">
             <button 
@@ -276,7 +275,7 @@ export default function TreasurerReviewModal({ isOpen, onClose, collection, onPr
                 </div>
               </div>
 
-              {/* Rejection Reason Display */}
+              {/* reject display */}
               {collection.status === 'Rejected' && collection.rejectReason && (
                 <div className="bg-red-50/70 p-4 rounded-[16px] border border-red-200 animate-fade-in">
                   <h4 className="text-[12px] font-black text-red-800 uppercase tracking-widest mb-1.5 flex items-center gap-1">
@@ -286,7 +285,7 @@ export default function TreasurerReviewModal({ isOpen, onClose, collection, onPr
                 </div>
               )}
 
-              {/* Application Math Display */}
+              {/* application math display */}
               {collection.status === 'Posted' && collection.applicationData && (
                 <div className="bg-emerald-50/60 p-5 rounded-[16px] border border-emerald-200 space-y-4 animate-fade-in">
                   <h4 className="text-[13px] font-black text-emerald-900 uppercase tracking-widest border-b border-emerald-200 pb-2 flex items-center gap-2">
@@ -315,7 +314,7 @@ export default function TreasurerReviewModal({ isOpen, onClose, collection, onPr
                 </div>
               )}
 
-              {/* Rejection Input */}
+              {/* rejection input */}
               {!isCompleted && step === 'rejecting' && (
                 <div className="bg-red-50/70 p-4 rounded-[16px] border border-red-200 animate-fade-in">
                   <label className="block text-[11px] font-black text-red-800 uppercase tracking-widest mb-2">
@@ -335,7 +334,7 @@ export default function TreasurerReviewModal({ isOpen, onClose, collection, onPr
             </div>
           )}
 
-          {/* Step 2: Application Selection */}
+          {/* application selection */}
           {!isCompleted && step === 'apply' && (
             <div className="space-y-6 animate-fade-in">
               <div className="bg-blue-50/60 p-5 rounded-[16px] border border-blue-100">
@@ -384,7 +383,7 @@ export default function TreasurerReviewModal({ isOpen, onClose, collection, onPr
             </div>
           )}
 
-          {/* Step 3: Confirm Posting */}
+          {/* confirm posting */}
           {!isCompleted && step === 'confirm' && (
             <div className="text-center py-6 animate-fade-in space-y-4">
               <div className="w-16 h-16 bg-blue-50 border-2 border-blue-200 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -397,7 +396,7 @@ export default function TreasurerReviewModal({ isOpen, onClose, collection, onPr
             </div>
           )}
 
-          {/* Audit Trail Timeline */}
+          {/* audit trail timeline */}
           {isCompleted && activeTab === 'timeline' && (
             <div className="p-4 animate-fade-in">
               <div className="relative border-l-2 border-blue-100 ml-3 space-y-6">
@@ -430,7 +429,7 @@ export default function TreasurerReviewModal({ isOpen, onClose, collection, onPr
 
         </div>
 
-        {/* Modal Action Buttons */}
+        {/* modal action buttons */}
         <div className="border-t border-white/60 pt-5 mt-2 flex gap-3 justify-end relative z-10">
           {isCompleted && (
             <button onClick={handleClose} className="px-5 py-2.5 rounded-full text-[13px] font-bold text-[#04152d] bg-white border border-white/80 hover:bg-white/80 shadow-sm transition-colors">

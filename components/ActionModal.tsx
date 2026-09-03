@@ -27,7 +27,7 @@ export default function ActionModal({
 }: ActionModalProps) {
   const [mounted, setMounted] = useState(false);
 
-  // Handle mounting and scroll locking
+  // for scroll locking
   useEffect(() => {
     setMounted(true);
     if (isOpen) {
@@ -42,11 +42,9 @@ export default function ActionModal({
 
   if (!isOpen || !mounted) return null;
 
-  // Liquid Glass CSS Variables
   const ultraGlassCard = "glass-sheen bg-gradient-to-br from-white/60 via-white/40 to-white/30 backdrop-blur-[40px] backdrop-saturate-[200%] border border-white/80 shadow-[0_10px_30px_rgba(4,21,45,0.06),0_1px_1px_rgba(255,255,255,0.6),inset_0_2px_3px_rgba(255,255,255,0.9)] rounded-[24px] p-6";
   const iconBtn = "glass-sheen flex items-center justify-center bg-white/70 hover:bg-white/90 backdrop-blur-md border border-white/80 shadow-[0_2px_8px_rgba(4,21,45,0.04),inset_0_1px_2px_rgba(255,255,255,0.8)] hover:shadow-[0_4px_12px_rgba(4,21,45,0.08),inset_0_1px_2px_rgba(255,255,255,1)] rounded-full transition-all duration-300 active:scale-90 text-[#04152d]/60 hover:text-[#04152d]";
 
-  // Map status to Header Icon
   const getIcon = () => {
     if (status === 'success') return <CheckCircle2 className="text-blue-600" size={20} />;
     if (status === 'error') return <AlertTriangle className="text-red-600" size={20} />;
@@ -56,7 +54,7 @@ export default function ActionModal({
   const modalContent = (
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6">
       
-      {/* Inject animations strictly into the portal tree */}
+      {/* aimations */}
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes modal-enter {
           from { opacity: 0; transform: scale(0.95) translateY(10px); }
@@ -81,16 +79,16 @@ export default function ActionModal({
         }
       `}} />
 
-      {/* Background Overlay */}
+      {/* background overlay */}
       <div 
         className="absolute inset-0 bg-[#04152d]/40 backdrop-blur-sm transition-opacity duration-300" 
         onClick={status !== 'loading' ? onClose : undefined} 
       />
       
-      {/* Modal Card */}
+      {/* card */}
       <div className={`relative w-full max-w-md ${ultraGlassCard} flex flex-col animate-modal-enter`}>
         
-        {/* Header */}
+        {/* header */}
         <div className="flex items-center justify-between border-b border-white/60 pb-4 mb-5">
           <h3 className="text-[16px] font-black text-[#04152d] tracking-tight flex items-center gap-2.5">
             {getIcon()} {title}
@@ -102,7 +100,7 @@ export default function ActionModal({
           )}
         </div>
 
-        {/* Content Body */}
+        {/* content body */}
         <div className="bg-white/50 backdrop-blur-md border border-white/80 p-6 rounded-[20px] shadow-[inset_0_1px_2px_rgba(255,255,255,0.9)] mb-6 flex flex-col items-center justify-center min-h-[100px] text-center">
           {status === 'loading' ? (
             <div className="flex flex-col items-center gap-3">
@@ -116,7 +114,7 @@ export default function ActionModal({
           )}
         </div>
 
-        {/* Actions */}
+        {/* actions */}
         {status === 'idle' && (
           <div className="flex items-center gap-3 w-full mt-auto">
             <button
@@ -134,7 +132,7 @@ export default function ActionModal({
           </div>
         )}
 
-        {/* End States */}
+        {/* end states */}
         {(status === 'success' || status === 'error') && (
           <div className="flex w-full mt-auto">
             <button

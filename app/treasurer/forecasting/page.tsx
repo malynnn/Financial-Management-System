@@ -53,7 +53,7 @@ const CustomComparisonTooltip = ({ active, payload }: any) => {
           <p className="text-[14px] font-bold text-[#04152d] tracking-tight">{data.fullName || data.name}</p>
         </div>
         <div className="flex flex-col gap-1">
-          <p className="text-[11px] font-semibold text-[#04152d]/60 uppercase tracking-widest">AI Projected Target (Pandas)</p>
+          <p className="text-[11px] font-semibold text-[#04152d]/60 uppercase tracking-widest">AI Projected Target</p>
           <p className="text-[18px] font-bold text-emerald-600 tracking-tight">₱{(data.value || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
         </div>
       </div>
@@ -156,7 +156,6 @@ export default function ForecastingDashboardPage() {
             projectedBalance: projSum,
             name: 'All Active Funds',
             code: 'ALL',
-            taskReference: 'FAI-001 - FAI-012'
           };
         }
       } else if (liveForecastData.forecasts[fundFilter]) {
@@ -167,7 +166,6 @@ export default function ForecastingDashboardPage() {
             projectedBalance: f.projectedBalance || f.latestProjectedBalance,
             name: f.fundName,
             code: f.fundCode,
-            taskReference: f.taskReference || 'FAI-009'
           };
         }
       }
@@ -180,7 +178,6 @@ export default function ForecastingDashboardPage() {
         projectedBalance: MOCK_ACTIVE_FUNDS.reduce((acc, curr) => acc + curr.projectedBalance, 0),
         name: 'All Active Funds',
         code: 'ALL',
-        taskReference: 'FAI-001 - FAI-012'
       };
     }
     return MOCK_ACTIVE_FUNDS.find(f => f.code === fundFilter) || MOCK_ACTIVE_FUNDS[0];
@@ -341,12 +338,12 @@ export default function ForecastingDashboardPage() {
                 onChange={(e) => setFundFilter(e.target.value)} 
                 className={`${glassInput} w-full appearance-none cursor-pointer`}
               >
-                <option value="All">All Active Funds (FAI-009)</option>
-                <option value="UNF">Union Fund (UNF) - FAI-004</option>
-                <option value="GEN">General Fund (GEN) - FAI-005</option>
-                <option value="DAF">Death Assistance Fund (DAF) - FAI-006</option>
-                <option value="FAF">Foreign Assistance Fund (FAF) - FAI-007</option>
-                <option value="LNF">Loan Fund (LNF) - FAI-008</option>
+                <option value="All">All Active Funds</option>
+                <option value="UNF">Union Fund (UNF)</option>
+                <option value="GEN">General Fund (GEN)</option>
+                <option value="DAF">Death Assistance Fund (DAF)</option>
+                <option value="FAF">Foreign Assistance Fund (FAF)</option>
+                <option value="LNF">Loan Fund (LNF)</option>
               </select>
               <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#04152d]/50 pointer-events-none" />
             </div>
@@ -377,26 +374,20 @@ export default function ForecastingDashboardPage() {
                 <span>Stored Batch: {liveForecastData.batchId.slice(-8)}</span>
               </div>
             )}
-
-            {/* Live Engine Indicator */}
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 text-[11px] font-semibold">
-              <CheckCircle2 size={12} className="text-emerald-600" />
-              <span>Pandas Engine Active</span>
-            </div>
           </div>
           
           <div className="flex items-center gap-2 w-full xl:w-auto">
             <button
               onClick={() => fetchForecast(fundFilter)}
               title="Refresh Forecast Data"
-              className="p-2.5 bg-white/60 hover:bg-white/90 border border-white/90 rounded-[12px] text-[#04152d]/70 transition-all shadow-sm active:scale-95"
+              className="p-2.5 bg-white/60 hover:bg-white/90 border border-white/90 rounded-[100px] text-[#04152d]/70 transition-all shadow-sm active:scale-95"
             >
               <RefreshCw size={16} className={isLoading ? 'animate-spin text-emerald-600' : ''} />
             </button>
 
             <button 
               onClick={() => setIsModalOpen(true)}
-              className="flex-1 xl:flex-initial relative overflow-hidden px-5 py-2.5 bg-gradient-to-b from-emerald-500 to-emerald-700 text-white border border-emerald-800 shadow-[0_6px_20px_rgba(16,185,129,0.3),inset_0_1px_1px_rgba(255,255,255,0.2)] hover:shadow-[0_8px_25px_rgba(16,185,129,0.4),inset_0_1px_1px_rgba(255,255,255,0.3)] hover:from-emerald-400 hover:to-emerald-600 rounded-[12px] text-[13px] font-semibold transition-all duration-300 flex justify-center items-center gap-2 active:scale-95"
+              className="flex-1 xl:flex-initial relative overflow-hidden px-5 py-2.5 bg-gradient-to-b from-emerald-500 to-emerald-700 text-white border border-emerald-800 shadow-[0_6px_20px_rgba(16,185,129,0.3),inset_0_1px_1px_rgba(255,255,255,0.2)] hover:shadow-[0_8px_25px_rgba(16,185,129,0.4),inset_0_1px_1px_rgba(255,255,255,0.3)] hover:from-emerald-400 hover:to-emerald-600 rounded-[100px] text-[13px] font-semibold transition-all duration-300 flex justify-center items-center gap-2 active:scale-95"
             >
               <BrainCircuit size={16} /> Generate AI Forecast
             </button>
@@ -409,7 +400,7 @@ export default function ForecastingDashboardPage() {
           <div className="bg-amber-500/10 border border-amber-500/30 rounded-[16px] p-4 flex items-start gap-3 shadow-sm">
             <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
             <div>
-              <p className="text-[13px] font-bold text-amber-900">Historical Data Sufficiency Verification (FAI-003 / FAI-008)</p>
+              <p className="text-[13px] font-bold text-amber-900">Historical Data Sufficiency Verification</p>
               <p className="text-[12px] text-amber-800/80 mt-0.5">
                 {fundFilter !== 'All' 
                   ? (liveForecastData.errors[fundFilter]?.error || 'This fund requires at least 3 distinct historical periods with posted transactions to compute a reliable projection.')
@@ -426,7 +417,7 @@ export default function ForecastingDashboardPage() {
               <Wallet size={20} className="text-[#04152d]/60" />
             </div>
             <div>
-              <span className="block text-[10px] font-semibold text-[#04152d]/50 uppercase tracking-widest">Historical Baseline (FAI-001)</span>
+              <span className="block text-[10px] font-semibold text-[#04152d]/50 uppercase tracking-widest">Historical Baseline</span>
               <span className="block text-[24px] font-semibold text-[#04152d] tracking-tighter mt-0.5">{formatCurrency(activeFundData.historicalBalance)}</span>
             </div>
           </div>
@@ -435,7 +426,7 @@ export default function ForecastingDashboardPage() {
               <BrainCircuit size={20} className="text-emerald-600" />
             </div>
             <div>
-              <span className="block text-[10px] font-semibold text-[#04152d]/50 uppercase tracking-widest">AI Projected Target (Pandas)</span>
+              <span className="block text-[10px] font-semibold text-[#04152d]/50 uppercase tracking-widest">AI Projected Target</span>
               <span className="block text-[24px] font-semibold text-[#04152d] tracking-tighter mt-0.5">{formatCurrency(activeFundData.projectedBalance)}</span>
             </div>
           </div>
@@ -457,10 +448,10 @@ export default function ForecastingDashboardPage() {
           <div className="flex justify-between items-start border-b border-white/60 pb-3 mb-4 shrink-0">
             <div>
               <h3 className="text-[14px] font-semibold text-[#04152d] uppercase tracking-widest flex items-center gap-2">
-                <Activity size={16} className="text-blue-500"/> Fund Projection Trendline (Pandas Time-Series)
+                <Activity size={16} className="text-blue-500"/> Fund Projection Trendline
               </h3>
               <p className="text-[11px] font-medium text-[#04152d]/50 mt-1">
-                Analyzing: {activeFundData.name} | Period Horizon: Selected Forecast Horizon (FAI-010)
+                Analyzing: {activeFundData.name} | Period Horizon: Selected Forecast Horizon
               </p>
             </div>
           </div>
@@ -498,7 +489,7 @@ export default function ForecastingDashboardPage() {
           
           <div className={`flex-1 ${ultraGlassCard} !p-5 flex flex-col min-h-[300px]`}>
             <h3 className="text-[13px] font-semibold text-[#04152d] uppercase tracking-widest border-b border-white/60 pb-2 mb-4 shrink-0 flex items-center gap-2">
-              <BarChart2 size={16} className="text-emerald-500"/> Projected Fund Comparison (FAI-009)
+              <BarChart2 size={16} className="text-emerald-500"/> Projected Fund Comparison
             </h3>
             <div className="flex-1 w-full min-h-[200px]">
               <ResponsiveContainer width="100%" height="100%">

@@ -53,13 +53,12 @@ export default function TreasurerCollectionsPage() {
   const [collections, setCollections] = useState<any[]>(MOCK_COLLECTIONS);
   const [isLoading, setIsLoading] = useState(false);
   
-  // Standard Filters
+  // filters
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('Requires Action');
   const [methodFilter, setMethodFilter] = useState('All');
-  
-  // Date Range Filter
+  //date range filter
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   
@@ -121,7 +120,6 @@ export default function TreasurerCollectionsPage() {
         }
       }
     } catch {
-      // Fallback to initial state
     } finally {
       setIsLoading(false);
     }
@@ -131,7 +129,7 @@ export default function TreasurerCollectionsPage() {
     fetchCollectionsFromApi();
   }, []);
 
-  // Debounce the search input by 300ms
+  // debounce search input by 300ms
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchInput), 300);
     return () => clearTimeout(timer);
@@ -161,7 +159,7 @@ export default function TreasurerCollectionsPage() {
         matchesStatus = c.status === statusFilter;
       }
 
-      // Validating Date Range
+      // validate date range
       const collectionDate = new Date(c.date);
       const matchesStartDate = startDate ? collectionDate >= new Date(startDate) : true;
       const matchesEndDate = endDate ? collectionDate <= new Date(endDate) : true;

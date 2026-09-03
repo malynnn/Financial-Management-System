@@ -61,13 +61,11 @@ export default function FundTransferModal({ isOpen, onClose, funds, onSubmit }: 
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-      {/* Blurred Dark Overlay */}
       <div 
         className={`absolute inset-0 bg-[#04152d]/40 backdrop-blur-md transition-opacity duration-400 ease-[cubic-bezier(0.25,1,0.5,1)] ${show ? 'opacity-100' : 'opacity-0'}`} 
         onClick={onClose} 
       />
       
-      {/* Liquid Glass Card */}
       <div className={`relative w-full max-w-lg flex flex-col glass-sheen bg-gradient-to-br from-white/60 via-white/40 to-white/30 backdrop-blur-[40px] backdrop-saturate-[200%] border border-white/80 shadow-[0_10px_30px_rgba(4,21,45,0.06),0_1px_1px_rgba(255,255,255,0.6),inset_0_2px_3px_rgba(255,255,255,0.9)] rounded-[24px] p-6 md:p-8 transition-all duration-400 ease-[cubic-bezier(0.25,1,0.5,1)] transform ${show ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4'}`}>
         
         <div className="flex items-center justify-between border-b border-white/60 pb-4 mb-5">

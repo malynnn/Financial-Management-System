@@ -318,7 +318,6 @@ export default function AdminFundMasterPage() {
                     )}
                   </>
                 ) : (
-                  // Premium Empty State
                   <tr>
                     <td colSpan={5} className="py-20 text-center">
                       <div className="flex flex-col items-center justify-center space-y-3">

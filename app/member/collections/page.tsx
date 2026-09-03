@@ -265,7 +265,7 @@ function CollectionFormContent() {
 
       <div className="p-4 md:p-6 max-w-[1200px] w-full mx-auto animate-fade-in flex-1 relative z-10">
 
-        {/* Success Alert */}
+        {/* success alert */}
         {submissionResult && (
           <div className="mb-6 bg-emerald-50/90 backdrop-blur-md border border-emerald-200 shadow-[0_8px_20px_rgba(16,185,129,0.15)] p-5 rounded-[20px] flex items-start justify-between gap-4 animate-fade-in">
             <div className="flex items-start gap-3.5">
@@ -291,7 +291,7 @@ function CollectionFormContent() {
           </div>
         )}
 
-        {/* Error Alert */}
+        {/* error alert */}
         {errorMessage && (
           <div className="mb-6 bg-red-50/90 backdrop-blur-md border border-red-200 text-red-700 p-4 rounded-[16px] flex items-start gap-3 text-[13px] font-bold animate-fade-in">
             <AlertCircle size={18} className="shrink-0 mt-0.5 text-red-500" />
@@ -313,7 +313,7 @@ function CollectionFormContent() {
                 {/* Target Obligation Selector */}
                 {activeObligations.length > 0 && (
                   <div>
-                    <label className={inputLabel}>Apply Payment Towards Obligation (Optional)</label>
+                    <label className={inputLabel}>Apply Payment Towards Obligation</label>
                     <div className="relative">
                       <select
                         value={selectedObligationId}
@@ -344,7 +344,7 @@ function CollectionFormContent() {
                       value={memberId}
                       onChange={(e) => setMemberId(e.target.value)}
                       className={glassInput}
-                      placeholder="e.g. usr-member-1"
+                      placeholder="Example: usr-member-1"
                     />
                   </div>
                 </div>
@@ -420,21 +420,21 @@ function CollectionFormContent() {
                         value={reference}
                         onChange={(e) => setReference(e.target.value)}
                         className={glassInput}
-                        placeholder="e.g. GCASH-998811 or Bank Ref No."
+                        placeholder="Example: GCASH-998811 or Bank Ref No."
                       />
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <label className={inputLabel}>Note / Remarks (Optional)</label>
+                  <label className={inputLabel}>Note/Remarks</label>
                   <input
                     type="text"
                     disabled={isSubmitting}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     className={glassInput}
-                    placeholder="e.g. Annual Dues payment installment"
+                    placeholder="Example: Annual Dues payment installment"
                   />
                 </div>
               </div>
@@ -451,7 +451,7 @@ function CollectionFormContent() {
             </div>
           </form>
 
-          {/* Proof Upload Area */}
+          {/* proof upload area */}
           <div className="xl:col-span-2 space-y-6">
             <div className={ultraGlassCard}>
               <h3 className="text-[14px] font-black text-[#04152d] tracking-tight uppercase tracking-widest border-b border-white/60 pb-3 mb-6 flex items-center gap-2">

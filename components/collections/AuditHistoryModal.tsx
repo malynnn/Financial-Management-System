@@ -45,7 +45,7 @@ export default function AuditHistoryModal({ isOpen, onClose, collection, showToa
   const formatCurrency = (val: number) => `₱${val.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
   const handleExportLog = () => {
-    // Dynamically generate a text file containing the audit trail
+    // dynamically generate a text file containing the audit trail
     const logContent = `AUDIT LOG - ${collection.ref}\nGenerated on: ${new Date().toISOString()}\n\n` + 
       collection.auditTrail.map(log => 
         `[${new Date(log.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Manila' })}] ${log.action}\nDetails: ${log.details}\nActor: ${log.actor} (${log.role})\n`

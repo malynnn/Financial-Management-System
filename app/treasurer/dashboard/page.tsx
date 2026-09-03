@@ -16,7 +16,7 @@ import AuditLogModal from '@/components/dashboard/AuditLogModal';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas-pro';
 
-// --- MOCK DATA CONSTANTS ---
+// mock data
 const MOCK_FUNDS = [
   { id: '1', name: 'General Fund', balance: 250000 },
   { id: '2', name: 'Emergency Fund', balance: 75000 },
@@ -68,7 +68,6 @@ const MOCK_ANALYTICS = {
 const CHART_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#6366f1', '#ec4899'];
 const ITEMS_PER_PAGE = 10;
 
-// --- CUSTOM RICH TOOLTIPS ---
 const CustomAreaTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
@@ -125,7 +124,6 @@ const CustomPieTooltip = ({ active, payload }: any) => {
 };
 
 export default function TreasurerDashboardPage() {
-  // FIX: Initialize as null to prevent Server/Client Hydration Mismatch
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   
   const [selectedForecastFund, setSelectedForecastFund] = useState('All');
@@ -142,7 +140,6 @@ export default function TreasurerDashboardPage() {
   const [endDate, setEndDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // FIX: Stamp dates strictly on client-side mount
   useEffect(() => {
     setPrintDate(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
     setLastRefreshed(new Date());
@@ -615,44 +612,6 @@ export default function TreasurerDashboardPage() {
                 View All
               </button>
             </div>
-
-            <div className={`${ultraGlassCard} flex flex-col`}>
-              <div className="flex items-center justify-between border-b border-white/60 pb-4 mb-5">
-                <h3 className="text-[14px] font-bold text-[#04152d] tracking-tight uppercase tracking-widest flex items-center gap-2">
-                  <History size={18} className="text-blue-600" /> System Audit Logs
-                </h3>
-                <button onClick={() => setIsAuditModalOpen(true)} className={`${iconBtn} w-8 h-8`} title="Expand Logs">
-                  <Maximize2 size={14} />
-                </button>
-              </div>
-              <div className="space-y-3 flex-1 overflow-hidden relative">
-                {MOCK_ANALYTICS.audit_logs.slice(0, 5).map((log: any) => (
-                  <div key={log.id} className="flex items-start justify-between py-3 border-b border-white/50 last:border-0">
-                    <div className="overflow-hidden pr-3">
-                      <p className="text-[12.5px] font-bold text-[#04152d] leading-snug line-clamp-2">{log.action}</p>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-[10px] font-semibold text-[#04152d]/60 bg-white/50 px-2 py-0.5 rounded border border-white/60 truncate max-w-[120px]">{log.actor}</span>
-                        <span className="text-[10px] font-mono font-semibold text-[#04152d]/40">
-                          {new Date(log.timestamp).toLocaleTimeString('en-US', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <span className={`px-2.5 py-1 rounded border text-[9px] font-bold uppercase tracking-widest shadow-sm ${
-                        log.status === 'success' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-yellow-50 border-yellow-200 text-yellow-700'
-                      }`}>
-                        {log.status}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-                <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white/40 to-transparent pointer-events-none" />
-              </div>
-              <button onClick={() => setIsAuditModalOpen(true)} className="w-full mt-4 py-3 text-[11.5px] font-bold text-[#04152d]/60 uppercase tracking-widest hover:text-[#04152d] hover:bg-white/40 rounded-xl transition-colors">
-                View All
-              </button>
-            </div>
-
           </div>
         </div>
 

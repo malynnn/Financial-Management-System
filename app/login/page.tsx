@@ -36,7 +36,7 @@ function LoginForm() {
 
     if (lowerInput.includes("admin")) {
       role = "Officer/Admin";
-      targetRoute = "/admin/dashboard";
+      targetRoute = "/admin/funds";
     } else if (lowerInput.includes("auditor")) {
       role = "Auditor";
       targetRoute = "/auditor/collections";
@@ -110,24 +110,21 @@ function LoginForm() {
         />
       </div>
 
-      {/* Right Side: Deep Navy Glass Environment */}
       <div className="w-full lg:w-1/2 bg-[#04152d] relative flex items-center justify-center p-6 lg:p-8 z-0">
         
-        {/* Dynamic Background Blobs strictly contained within the right side */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
           <div className="glass-blob w-[500px] h-[500px] bg-blue-600/30 -top-32 -right-20" />
           <div className="glass-blob w-[450px] h-[450px] bg-yellow-400/20 top-1/4 -left-32" style={{ animationDelay: '3s' }} />
           <div className="glass-blob w-[400px] h-[400px] bg-blue-400/20 bottom-0 right-10" style={{ animationDelay: '6s' }} />
         </div>
 
-        {/* Frosted Glass Login Card */}
         <div className="relative z-10 bg-white/85 backdrop-blur-[50px] backdrop-saturate-[200%] border border-white w-full max-w-md rounded-[28px] p-8 lg:p-10 shadow-[0_24px_60px_rgba(0,0,0,0.4),inset_0_2px_4px_rgba(255,255,255,1)]">
           
           <h2 className="text-[2.2rem] leading-none font-black text-[#04152d] mb-6 tracking-tight drop-shadow-sm">
-            Sign In
+            Log In
           </h2>
 
-          {/* Error Display */}
+          {/* error display */}
           {(errorMessage || errorUrl) && (
             <div className="mb-5 bg-red-50/90 backdrop-blur-md border border-red-200 text-red-700 p-3.5 rounded-[16px] flex items-start gap-2.5 text-[12.5px] font-bold animate-fade-in">
               <AlertCircle size={16} className="shrink-0 mt-0.5 text-red-500" />
@@ -135,7 +132,7 @@ function LoginForm() {
             </div>
           )}
 
-          {/* Role Success Display */}
+          {/* role success */}
           {detectedRole && (
             <div className="mb-5 bg-emerald-50/90 backdrop-blur-md border border-emerald-200 text-emerald-800 p-3.5 rounded-[16px] flex items-center gap-3 text-sm font-bold animate-fade-in">
               <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0 border border-emerald-200">
@@ -148,10 +145,10 @@ function LoginForm() {
             </div>
           )}
 
-          {/* Quick Demo Role Switcher Buttons */}
+          {/* role switcher buttons */}
           <div className="mb-6 p-3 bg-blue-50/50 border border-blue-100/80 rounded-[18px]">
             <p className="text-[10px] font-black text-blue-900/70 uppercase tracking-widest mb-2 flex items-center gap-1">
-              ⚡ Quick Test Accounts (1-Click Switch)
+              One Click Switch
             </p>
             <div className="grid grid-cols-2 gap-2">
               {TEST_ACCOUNTS.map((acc) => {
@@ -187,7 +184,7 @@ function LoginForm() {
                   onChange={(e) => setUsername(e.target.value)}
                   disabled={!!detectedRole || isLoading}
                   className="w-full pl-11 pr-4 py-3 bg-white/90 hover:bg-white backdrop-blur-xl border border-white/90 shadow-[inset_0_2px_4px_rgba(4,21,45,0.03)] rounded-[14px] text-[13px] font-bold focus:bg-white focus:shadow-[0_4px_16px_rgba(4,21,45,0.08)] outline-none transition-all duration-300 disabled:opacity-50 text-[#04152d] placeholder:text-[#04152d]/40 placeholder:font-medium"
-                  placeholder="e.g. member@fms.com"
+                  placeholder="Example: member@fms.com"
                 />
               </div>
             </div>
@@ -203,7 +200,7 @@ function LoginForm() {
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={!!detectedRole || isLoading}
                   className="w-full pl-11 pr-4 py-3 bg-white/90 hover:bg-white backdrop-blur-xl border border-white/90 shadow-[inset_0_2px_4px_rgba(4,21,45,0.03)] rounded-[14px] text-[13px] font-bold focus:bg-white focus:shadow-[0_4px_16px_rgba(4,21,45,0.08)] outline-none transition-all duration-300 disabled:opacity-50 text-[#04152d] placeholder:text-[#04152d]/40 placeholder:font-medium"
-                  placeholder="Enter password (default: password123)"
+                  placeholder="Enter any password"
                 />
               </div>
             </div>
@@ -216,9 +213,9 @@ function LoginForm() {
               {isLoading && !detectedRole ? (
                 <><Loader2 size={16} className="animate-spin" /> Verifying Credentials...</>
               ) : detectedRole ? (
-                "Connecting Session..."
+                "Logging in..."
               ) : (
-                "Sign In"
+                "Log In"
               )}
             </button>
           </form>

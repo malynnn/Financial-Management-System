@@ -42,7 +42,7 @@ export default function DisbursementActionModal({ isOpen, onClose, disbursement,
   const [rejectReason, setRejectReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Authorization Check: Only Admins can approve. Treasurers can only execute.
+  // uuthorization check: only Admins can approve. Treasurers can only execute.
   const isAuthorizedApprover = currentUserRole === 'Officer/Admin' || currentUserRole === 'Superadmin' || currentUserRole === 'Admin';
 
   useEffect(() => {

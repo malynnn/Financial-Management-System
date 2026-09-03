@@ -30,7 +30,6 @@ export default function DisbursementRequestModal({ isOpen, onClose, onSuccess }:
   const [beneficiaryError, setBeneficiaryError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // DMP-001: Fetch eligible approved loans from backend
   useEffect(() => {
     if (isOpen) {
       setSelectedLoanId('');
@@ -65,7 +64,7 @@ export default function DisbursementRequestModal({ isOpen, onClose, onSuccess }:
 
   const selectedLoan = loans.find(l => l.id === selectedLoanId);
 
-  // Sync beneficiary details when loan is selected
+  // sync beneficiary details when loan is selected
   useEffect(() => {
     if (selectedLoan) {
       setBeneficiaryName(selectedLoan.beneficiary?.name || selectedLoan.member || '');
@@ -87,13 +86,12 @@ export default function DisbursementRequestModal({ isOpen, onClose, onSuccess }:
     if (!inputName) {
       setBeneficiaryError('Beneficiary name is required.');
     } else if (!expectedName.includes(inputName) && !inputName.includes(expectedName)) {
-      setBeneficiaryError(`DMP-004: Beneficiary name does not match approved loan record (${selectedLoan.beneficiary?.name || selectedLoan.member}).`);
+      setBeneficiaryError(`Beneficiary name does not match approved loan record (${selectedLoan.beneficiary?.name || selectedLoan.member}).`);
     } else {
       setBeneficiaryError(null);
     }
   };
 
-  // DMP-005, DMP-006, DMP-007: Validate Amount Limits
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setAmount(val);
@@ -102,11 +100,11 @@ export default function DisbursementRequestModal({ isOpen, onClose, onSuccess }:
 
     const numVal = Number(val);
     if (val && numVal <= 0) {
-      setAmountError("DMP-005: Amount must be greater than zero.");
+      setAmountError("Amount must be greater than zero.");
     } else if (val && numVal > selectedLoan.remainingAmount) {
-      setAmountError(`DMP-005/007: Exceeds approved remaining loan balance (₱${selectedLoan.remainingAmount.toLocaleString()}).`);
+      setAmountError(`Exceeds approved remaining loan balance (₱${selectedLoan.remainingAmount.toLocaleString()}).`);
     } else if (val && numVal > selectedLoan.availableFund) {
-      setAmountError(`DMP-006/007: Exceeds available fund balance (₱${selectedLoan.availableFund.toLocaleString()}).`);
+      setAmountError(`Exceeds available fund balance (₱${selectedLoan.availableFund.toLocaleString()}).`);
     } else {
       setAmountError(null);
     }
@@ -169,7 +167,7 @@ export default function DisbursementRequestModal({ isOpen, onClose, onSuccess }:
         throw new Error('API request failed');
       }
     } catch {
-      // Fallback local creation
+      // fallback local creation
       const newRecord = {
         id: `disb-${Date.now()}`,
         ref: `REQ-${Math.floor(Math.random() * 9000) + 1000}`,
@@ -207,7 +205,6 @@ export default function DisbursementRequestModal({ isOpen, onClose, onSuccess }:
             <h3 className="text-[18px] font-semibold text-[#04152d] tracking-tight flex items-center gap-2">
               <Send className="text-blue-600" /> Initiate Disbursement Request
             </h3>
-            <p className="text-[11px] text-[#04152d]/50 mt-0.5">Sprint 2 DMP-001 - DMP-007 Verification & Processing</p>
           </div>
           <button onClick={() => !isSubmitting && onClose()} disabled={isSubmitting} className="p-2 bg-white/50 hover:bg-white/80 rounded-full border border-white shadow-sm disabled:opacity-50 transition-colors">
             <X size={16} className="text-[#04152d]/60 hover:text-[#04152d]" />
@@ -220,7 +217,7 @@ export default function DisbursementRequestModal({ isOpen, onClose, onSuccess }:
             <div>
               <label className={labelStyle}>Eligible Approved Loan <span className="text-red-500 text-[14px] leading-none">*</span></label>
               <select required disabled={isSubmitting || isLoadingLoans} value={selectedLoanId} onChange={(e) => setSelectedLoanId(e.target.value)} className={glassInput}>
-                <option value="" disabled>{isLoadingLoans ? 'Loading eligible loans...' : 'Select approved obligation (DMP-001)...'}</option>
+                <option value="" disabled>{isLoadingLoans ? 'Loading eligible loans...' : 'Select approved obligation'}</option>
                 {loans.map(loan => (
                   <option key={loan.id} value={loan.id}>{loan.member} - {loan.type || loan.obligationType} ({loan.id}) - Avail: {formatCurrency(loan.remainingAmount)}</option>
                 ))}
@@ -230,11 +227,10 @@ export default function DisbursementRequestModal({ isOpen, onClose, onSuccess }:
             {selectedLoan && (
               <div className="animate-fade-in space-y-5">
                 
-                {/* DMP-004: Beneficiary Details */}
                 <div className="bg-blue-50/50 p-4 rounded-[16px] border border-blue-100 space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-[11px] font-semibold text-blue-800 uppercase tracking-widest flex items-center gap-1.5">
-                      <Banknote size={15} /> Beneficiary Verification (DMP-004)
+                      <Banknote size={15} /> Beneficiary Verification
                     </p>
                     <span className="text-[10px] font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Approved Recipient</span>
                   </div>
@@ -273,11 +269,10 @@ export default function DisbursementRequestModal({ isOpen, onClose, onSuccess }:
                   </div>
                 </div>
 
-                {/* DMP-005 & DMP-006: Loan Limits and Fund Integrity */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="bg-white/50 p-4 rounded-[16px] border border-white">
                     <p className="text-[10px] font-semibold text-[#04152d]/50 uppercase tracking-widest mb-1 flex items-center gap-1">
-                      <Calculator size={12} /> Loan Limits (DMP-005)
+                      <Calculator size={12} /> Loan Limits
                     </p>
                     <div className="flex justify-between items-center text-[12px] mt-2">
                       <span className="font-medium text-[#04152d]/60">Total Approved:</span>
@@ -291,7 +286,7 @@ export default function DisbursementRequestModal({ isOpen, onClose, onSuccess }:
 
                   <div className="bg-white/50 p-4 rounded-[16px] border border-white">
                     <p className="text-[10px] font-semibold text-[#04152d]/50 uppercase tracking-widest mb-1 flex items-center gap-1">
-                      <Calculator size={12} /> Fund Integrity (DMP-006)
+                      <Calculator size={12} /> Fund Integrity
                     </p>
                     <div className="flex justify-between items-center text-[12px] mt-2">
                       <span className="font-medium text-[#04152d]/60">Source Fund:</span>
@@ -304,10 +299,9 @@ export default function DisbursementRequestModal({ isOpen, onClose, onSuccess }:
                   </div>
                 </div>
 
-                {/* DMP-002, DMP-003, DMP-007: Amount and Method */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-white/60 pt-5">
                   <div>
-                    <label className={labelStyle}>Request Amount (DMP-007) <span className="text-red-500 text-[14px] leading-none">*</span></label>
+                    <label className={labelStyle}>Request Amount <span className="text-red-500 text-[14px] leading-none">*</span></label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#04152d]/50 font-bold text-[14px]">₱</span>
                       <input

@@ -155,7 +155,7 @@ export default function MemberDashboardPage() {
   const [collections, setCollections] = useState<CollectionItem[]>(defaultCols);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Loan Request Modal State
+  // loan request modal state
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
   const [loanType, setLoanType] = useState('Emergency Loan');
   const [loanAmount, setLoanAmount] = useState('');
@@ -164,11 +164,11 @@ export default function MemberDashboardPage() {
   const [loanNote, setLoanNote] = useState('');
   const [isSubmittingLoan, setIsSubmittingLoan] = useState(false);
 
-  // View Audit Trail / Details Modal State
+  // view audit trail/details modal state
   const [selectedCollection, setSelectedCollection] = useState<CollectionItem | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
-  // Notification Toast
+  // notification toast
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -179,7 +179,7 @@ export default function MemberDashboardPage() {
   const fetchData = async () => {
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      // 1. Fetch Member's Obligations
+      // 1. fetch member obligations
       const obRes = await fetch(`${API_URL}/obligations?memberId=${memberId}`);
       if (obRes.ok) {
         const obData = await obRes.json();
@@ -192,7 +192,7 @@ export default function MemberDashboardPage() {
         setObligations(defaultObs);
       }
 
-      // 2. Fetch Member's Collections
+      // 2. fetch member collections
       const colRes = await fetch(`${API_URL}/collections?memberId=${memberId}`);
       if (colRes.ok) {
         const colData = await colRes.json();
@@ -205,7 +205,7 @@ export default function MemberDashboardPage() {
         setCollections(defaultCols);
       }
     } catch {
-      // Offline fallback: Use default mock state if server unreachable
+      // offline fallback, use default mock state if server unreachable
       setObligations(defaultObs);
       setCollections(defaultCols);
     } finally {
@@ -260,7 +260,7 @@ export default function MemberDashboardPage() {
     }
   };
 
-  // KPI Calculations
+  // KPI calculations
   const totalOutstanding = obligations.reduce((sum, o) => sum + Number(o.outstandingBalance || 0), 0);
   const activeObligationsCount = obligations.filter(o => Number(o.outstandingBalance) > 0).length;
   const pendingSubmissionsCount = collections.filter(c => c.status === 'PENDING' || c.status === 'FOR_VERIFICATION' || c.status === 'VALIDATED').length;
@@ -297,7 +297,7 @@ export default function MemberDashboardPage() {
 
       <div className="p-4 md:p-6 max-w-[1400px] w-full mx-auto animate-fade-in flex-1 relative z-10 space-y-6 mt-2">
         
-        {/* Welcome & Action Bar */}
+        {/* welcome bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex flex-col gap-0.5">
             <h2 className="text-[22px] font-black text-[#04152d] tracking-tight">
@@ -325,7 +325,7 @@ export default function MemberDashboardPage() {
           </div>
         </div>
 
-        {/* Top 4 KPI Metrics */}
+        {/* top 4 kpi metrics */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <div className={ultraGlassCard}>
             <div className="flex items-center justify-between mb-2">
@@ -372,7 +372,7 @@ export default function MemberDashboardPage() {
           </div>
         </div>
 
-        {/* Section 1: Active Financial Obligations & Loans */}
+        {/* active financial obligatipns and loans */}
         <div className={ultraGlassCard}>
           <div className="flex items-center justify-between border-b border-white/60 pb-3 mb-4">
             <h3 className="text-[14px] font-black text-[#04152d] uppercase tracking-widest flex items-center gap-2">
@@ -458,7 +458,7 @@ export default function MemberDashboardPage() {
           </div>
         </div>
 
-        {/* Section 2: Recent Payment Submissions & Workflow Status */}
+        {/* recent payments */}
         <div className={ultraGlassCard}>
           <div className="flex items-center justify-between border-b border-white/60 pb-3 mb-4">
             <div>
@@ -548,7 +548,7 @@ export default function MemberDashboardPage() {
 
       </div>
 
-      {/* Loan Application Modal */}
+      {/* TEMPORARY loan application mdoal */}
       {isLoanModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-[#04152d]/40 backdrop-blur-md" onClick={() => setIsLoanModalOpen(false)} />
@@ -585,7 +585,7 @@ export default function MemberDashboardPage() {
                   min="500"
                   step="100"
                   required
-                  placeholder="e.g. 5000.00"
+                  placeholder="Example: 5000.00"
                   value={loanAmount}
                   onChange={(e) => setLoanAmount(e.target.value)}
                   className={glassInput}
@@ -652,7 +652,7 @@ export default function MemberDashboardPage() {
         </div>
       )}
 
-      {/* Collection Details & Audit Trail Modal */}
+      {/* collection details */}
       {isDetailsModalOpen && selectedCollection && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-[#04152d]/40 backdrop-blur-md" onClick={() => setIsDetailsModalOpen(false)} />
@@ -711,7 +711,7 @@ export default function MemberDashboardPage() {
                 </div>
               )}
 
-              {/* Audit Timeline */}
+              {/* audit timeline */}
               <div>
                 <h4 className="text-[11px] font-bold text-[#04152d]/60 uppercase tracking-widest mb-2 border-b border-white/60 pb-1 flex items-center gap-1">
                   <ShieldCheck size={13} /> Lifecycle Audit Trail
@@ -751,7 +751,7 @@ export default function MemberDashboardPage() {
         </div>
       )}
 
-      {/* Toast Notification */}
+      {/* toast */}
       {toast && (
         <div className="fixed bottom-6 right-6 z-[150] animate-slide-up bg-white/90 backdrop-blur-2xl border border-white shadow-[0_8px_30px_rgba(0,0,0,0.12)] p-4 rounded-[16px] flex items-center gap-3 min-w-[300px]">
           <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border ${

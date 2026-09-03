@@ -59,14 +59,101 @@ const LOAN_TYPES = [
   { type: 'Calamity Loan', maxAmount: 25000, fundSource: 'Calamity Fund' },
 ];
 
+const DEFAULT_MEMBER_OBLIGATIONS: Record<string, Obligation[]> = {
+  'usr-member-1': [
+    {
+      id: 'ob-juan-dues',
+      obligationType: 'Annual Dues',
+      originalAmount: 1500.0,
+      outstandingBalance: 1500.0,
+      dueDate: '2026-12-31',
+      status: 'UNPAID',
+      loanStatus: 'Approved',
+      approvedAmount: 1500.0,
+      disbursedAmount: 0.0,
+      remainingLoanAmount: 0.0,
+      beneficiaryName: 'Juan Dela Cruz',
+    },
+    {
+      id: 'ob-juan-loan',
+      obligationType: 'Emergency Loan',
+      originalAmount: 5000.0,
+      outstandingBalance: 5000.0,
+      dueDate: '2026-10-15',
+      status: 'UNPAID',
+      loanStatus: 'Approved',
+      approvedAmount: 5000.0,
+      disbursedAmount: 0.0,
+      remainingLoanAmount: 5000.0,
+      beneficiaryName: 'Juan Dela Cruz',
+    },
+  ],
+  'usr-member-2': [
+    {
+      id: 'ob-maria-dues',
+      obligationType: 'Annual Dues',
+      originalAmount: 1500.0,
+      outstandingBalance: 1500.0,
+      dueDate: '2026-12-31',
+      status: 'UNPAID',
+      loanStatus: 'Approved',
+      approvedAmount: 1500.0,
+      disbursedAmount: 0.0,
+      remainingLoanAmount: 0.0,
+      beneficiaryName: 'Maria Clara',
+    },
+    {
+      id: 'ob-maria-edu',
+      obligationType: 'Educational Loan',
+      originalAmount: 10000.0,
+      outstandingBalance: 10000.0,
+      dueDate: '2026-11-30',
+      status: 'UNPAID',
+      loanStatus: 'Approved',
+      approvedAmount: 10000.0,
+      disbursedAmount: 0.0,
+      remainingLoanAmount: 10000.0,
+      beneficiaryName: 'Maria Clara',
+    },
+  ],
+};
+
+const DEFAULT_MEMBER_COLLECTIONS: Record<string, CollectionItem[]> = {
+  'usr-member-1': [
+    {
+      id: 'col-sample-1',
+      collectionRefNo: 'COL-2026-00001',
+      paymentAmount: 500.0,
+      paymentDate: '2026-09-01',
+      paymentMethod: 'GCASH',
+      paymentReference: 'GCASH-100200300',
+      description: 'Partial initial payment for Annual Dues',
+      status: 'FOR_VERIFICATION',
+      proofOfPaymentName: 'gcash_receipt_sample.png',
+      proofOfPaymentPath: 'uploads/proofs/gcash_receipt_sample.png',
+      createdAt: '2026-09-01T08:00:00.000Z',
+      application: {
+        obligationId: 'ob-juan-dues',
+        obligation: { obligationType: 'Annual Dues' },
+        appliedAmount: 500.0,
+        remainingBalance: 1000.0,
+        exceptionStatus: 'Partial Payment',
+      },
+    },
+  ],
+};
+
 export default function MemberDashboardPage() {
   const { data: session } = useSession();
   const memberId = (session?.user as any)?.id || 'usr-member-1';
   const memberName = session?.user?.name || 'Juan Dela Cruz';
 
-  const [obligations, setObligations] = useState<Obligation[]>([]);
-  const [collections, setCollections] = useState<CollectionItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const defaultObs = DEFAULT_MEMBER_OBLIGATIONS[memberId] || DEFAULT_MEMBER_OBLIGATIONS['usr-member-1'] || [];
+  const defaultCols = DEFAULT_MEMBER_COLLECTIONS[memberId] || DEFAULT_MEMBER_COLLECTIONS['usr-member-1'] || [];
+
+  const [obligations, setObligations] = useState<Obligation[]>(defaultObs);
+  const [collections, setCollections] = useState<CollectionItem[]>(defaultCols);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Loan Request Modal State
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
@@ -91,21 +178,36 @@ export default function MemberDashboardPage() {
 
   const fetchData = async () => {
     try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
       // 1. Fetch Member's Obligations
-      const obRes = await fetch(`http://localhost:3001/obligations?memberId=${memberId}`);
+      const obRes = await fetch(`${API_URL}/obligations?memberId=${memberId}`);
       if (obRes.ok) {
         const obData = await obRes.json();
-        setObligations(obData);
+        if (Array.isArray(obData) && obData.length > 0) {
+          setObligations(obData);
+        } else {
+          setObligations(defaultObs);
+        }
+      } else {
+        setObligations(defaultObs);
       }
 
       // 2. Fetch Member's Collections
-      const colRes = await fetch(`http://localhost:3001/collections?memberId=${memberId}`);
+      const colRes = await fetch(`${API_URL}/collections?memberId=${memberId}`);
       if (colRes.ok) {
         const colData = await colRes.json();
-        setCollections(colData);
+        if (Array.isArray(colData) && colData.length > 0) {
+          setCollections(colData);
+        } else {
+          setCollections(defaultCols);
+        }
+      } else {
+        setCollections(defaultCols);
       }
     } catch {
-      // Offline fallback: Use initial mock state if server unreachable
+      // Offline fallback: Use default mock state if server unreachable
+      setObligations(defaultObs);
+      setCollections(defaultCols);
     } finally {
       setIsLoading(false);
     }

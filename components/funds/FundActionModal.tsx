@@ -110,21 +110,63 @@ export default function FundActionModal({ isOpen, onClose, fund, existingFunds, 
     setIsSubmitting(true);
     setError(null);
 
-    setTimeout(() => {
-      const fundData = {
-        id: isEditMode ? fund!.id : `FND-${Date.now()}`,
-        name: cleanName,
-        code: cleanCode,
-        description: description.trim(),
-        balance: isEditMode ? fund!.balance : Number(balance) || 0,
-        targetUtilization: Number(targetUtilization),
-        status: isEditMode ? fund!.status : 'Active'
-      };
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-      onSuccess(fundData);
-      setIsSubmitting(false);
-      onClose();
-    }, 1200);
+    (async () => {
+      try {
+        let responseData: any = null;
+        if (isEditMode && fund) {
+          const res = await fetch(`${API_BASE_URL}/funds/${fund.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: cleanName,
+              code: cleanCode,
+              description: description.trim(),
+              targetUtilization: Number(targetUtilization),
+            }),
+          });
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.message || 'Failed to update fund.');
+          }
+          responseData = await res.json();
+        } else {
+          const res = await fetch(`${API_BASE_URL}/funds`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: cleanName,
+              code: cleanCode,
+              description: description.trim(),
+              openingBalance: Number(balance) || 0,
+              targetUtilization: Number(targetUtilization),
+              status: 'Active',
+            }),
+          });
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.message || 'Failed to register fund.');
+          }
+          responseData = await res.json();
+        }
+
+        onSuccess(responseData || {
+          id: isEditMode ? fund!.id : `FND-${Date.now()}`,
+          name: cleanName,
+          code: cleanCode,
+          description: description.trim(),
+          balance: isEditMode ? fund!.balance : Number(balance) || 0,
+          targetUtilization: Number(targetUtilization),
+          status: isEditMode ? fund!.status : 'Active'
+        });
+        setIsSubmitting(false);
+        onClose();
+      } catch (err: any) {
+        setIsSubmitting(false);
+        setError(err.message || 'An error occurred while saving fund.');
+      }
+    })();
   };
 
   if (!isOpen) return null;

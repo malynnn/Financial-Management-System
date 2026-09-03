@@ -3,8 +3,10 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { DisbursementStatus, PaymentMethod, Prisma } from '@prisma/client';
+import { FundsService } from '../funds/funds.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDisbursementRequestDto } from './dto/create-disbursement-request.dto';
 import { ExecuteDisbursementDto } from './dto/execute-disbursement.dto';
@@ -21,7 +23,10 @@ const DEFAULT_FUNDS = [
 
 @Injectable()
 export class DisbursementsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly fundsService?: FundsService,
+  ) {}
 
   /**
    * DMP-001: Retrieve approved loan information
@@ -347,7 +352,7 @@ export class DisbursementsService {
     }
 
     // DMP-010, DMP-012, DMP-014: Record completed disbursement, mark ready for reconciliation
-    return this.prisma.disbursement.update({
+    const executedDisbursement = await this.prisma.disbursement.update({
       where: { id },
       data: {
         status: DisbursementStatus.EXECUTED,
@@ -370,6 +375,27 @@ export class DisbursementsService {
         auditTrail: { orderBy: { timestamp: 'asc' } },
       },
     });
+
+    // FMS-004: Record posted fund outflow transaction
+    if (this.fundsService) {
+      try {
+        const assignedFund = disbursement.fundSource || 'General Fund';
+        await this.fundsService.recordPostedTransaction({
+          fundIdOrName: assignedFund,
+          transactionRef: executionRefNo,
+          transactionType: 'Outflow (Disbursement)',
+          amount: amountNum,
+          referenceType: 'DISBURSEMENT',
+          referenceId: disbursement.id,
+          description: `Disbursement released to ${disbursement.beneficiaryName}: ${disbursement.description || 'Loan release'}`,
+          date: disbursement.date || new Date(),
+        });
+      } catch (e) {
+        // Fallback gracefully if funds not yet initialized
+      }
+    }
+
+    return executedDisbursement;
   }
 
   /**

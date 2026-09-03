@@ -46,6 +46,22 @@ async function bootstrap() {
     },
   });
 
+  // Connect RabbitMQ microservice transport
+  const rabbitmqUrl =
+    process.env.RABBITMQ_URL || 'amqp://fms_guest:fms_guest_pass@127.0.0.1:5672';
+  const rabbitmqQueue = process.env.RABBITMQ_QUEUE || 'fms_events_queue';
+
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.RMQ,
+    options: {
+      urls: [rabbitmqUrl],
+      queue: rabbitmqQueue,
+      queueOptions: {
+        durable: true,
+      },
+    },
+  });
+
   // Swagger API docs
   const config = new DocumentBuilder()
     .setTitle('Financial Management System API')
@@ -64,6 +80,7 @@ async function bootstrap() {
   console.log(`HTTP server running on http://localhost:${port}`);
   console.log(`Swagger docs at http://localhost:${port}/api/docs`);
   console.log(`Microservice TCP listening on port ${process.env.MICROSERVICE_PORT || 3002}`);
+  console.log(`Microservice RabbitMQ connected to queue: "${rabbitmqQueue}"`);
 }
 
 bootstrap();

@@ -22,8 +22,11 @@ const MOCK_FUNDS = [
 const ITEMS_PER_PAGE = 10;
 const CHART_COLORS = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#1d4ed8', '#1e40af'];
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 export default function AdminFundMasterPage() {
   const [funds, setFunds] = useState<any[]>(MOCK_FUNDS);
+  const [isLoading, setIsLoading] = useState(false);
   
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -34,6 +37,27 @@ export default function AdminFundMasterPage() {
   const [selectedFund, setSelectedFund] = useState<any | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'info' | 'error' } | null>(null);
+
+  const fetchFunds = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(`${API_BASE_URL}/funds?search=${encodeURIComponent(debouncedSearch)}&status=${encodeURIComponent(statusFilter)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.funds)) {
+          setFunds(data.funds);
+        }
+      }
+    } catch (err) {
+      console.warn('Backend funds API not reachable, using local state.', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFunds();
+  }, [debouncedSearch, statusFilter]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchInput), 300);
@@ -64,18 +88,19 @@ export default function AdminFundMasterPage() {
     currentPage * ITEMS_PER_PAGE
   );
 
-  const totalSystemBalance = funds.reduce((sum, f) => sum + f.balance, 0);
+  const totalSystemBalance = funds.reduce((sum, f) => sum + Number(f.balance || 0), 0);
   const activeFundsCount = funds.filter(f => f.status === 'Active').length;
   
   const chartData = useMemo(() => {
     return funds.filter(f => f.status === 'Active').map(f => ({
       name: f.code,
       fullName: f.name,
-      balance: f.balance
+      balance: Number(f.balance || 0)
     }));
   }, [funds]);
 
   const handleModalSuccess = (fundData: any) => {
+    fetchFunds();
     if (selectedFund) {
       setFunds(prev => prev.map(f => f.id === fundData.id ? { ...f, ...fundData } : f));
       showToast(`${fundData.name} configuration updated successfully.`, 'success');
@@ -85,8 +110,20 @@ export default function AdminFundMasterPage() {
     }
   };
 
-  const toggleFundStatus = (fundId: string, currentStatus: string, fundName: string) => {
+  const toggleFundStatus = async (fundId: string, currentStatus: string, fundName: string) => {
     const newStatus = currentStatus === 'Active' ? 'Inactive' : 'Active';
+    try {
+      const res = await fetch(`${API_BASE_URL}/funds/${fundId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        fetchFunds();
+      }
+    } catch (err) {
+      console.warn('Could not reach backend to toggle fund status.', err);
+    }
     setFunds(prev => prev.map(f => f.id === fundId ? { ...f, status: newStatus } : f));
     showToast(`${fundName} has been ${newStatus === 'Active' ? 'activated' : 'deactivated'}.`, newStatus === 'Active' ? 'success' : 'info');
   };

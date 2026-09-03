@@ -32,7 +32,13 @@ const MOCK_TRANSACTIONS = Array.from({ length: 45 }).map((_, i) => {
 
 const ITEMS_PER_PAGE = 10;
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 export default function TreasurerFundMonitoringPage() {
+  const [funds, setFunds] = useState<any[]>(MOCK_ACTIVE_FUNDS);
+  const [transactions, setTransactions] = useState<any[]>(MOCK_TRANSACTIONS);
+  const [isLoading, setIsLoading] = useState(false);
+
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [fundFilter, setFundFilter] = useState('All');
@@ -45,6 +51,56 @@ export default function TreasurerFundMonitoringPage() {
   const [selectedFund, setSelectedFund] = useState<any | null>(null);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
 
+  // Fetch active funds from backend
+  const fetchFunds = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/funds?status=Active`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.funds)) {
+          setFunds(data.funds);
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch active funds from backend, using defaults.', err);
+    }
+  };
+
+  // Fetch transactions ledger from backend
+  const fetchLedger = async () => {
+    try {
+      setIsLoading(true);
+      const params = new URLSearchParams();
+      if (fundFilter !== 'All') params.append('fundName', fundFilter);
+      if (typeFilter !== 'All') params.append('type', typeFilter);
+      if (statusFilter !== 'All') params.append('status', statusFilter);
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      if (debouncedSearch) params.append('search', debouncedSearch);
+      params.append('limit', '100');
+
+      const res = await fetch(`${API_BASE_URL}/funds/transactions/ledger?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.data) && data.data.length > 0) {
+          setTransactions(data.data);
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch ledger from backend, using default mock data.', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFunds();
+  }, []);
+
+  useEffect(() => {
+    fetchLedger();
+  }, [fundFilter, typeFilter, statusFilter, startDate, endDate, debouncedSearch]);
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchInput), 300);
     return () => clearTimeout(timer);
@@ -55,7 +111,7 @@ export default function TreasurerFundMonitoringPage() {
   }, [debouncedSearch, fundFilter, typeFilter, statusFilter, startDate, endDate]);
 
   const filteredTransactions = useMemo(() => {
-    return MOCK_TRANSACTIONS.filter(t => {
+    return transactions.filter(t => {
       const matchesSearch = t.id.toLowerCase().includes(debouncedSearch.toLowerCase());
       const matchesFund = fundFilter === 'All' || t.fundName === fundFilter;
       const matchesType = typeFilter === 'All' || t.type === typeFilter;
@@ -67,7 +123,7 @@ export default function TreasurerFundMonitoringPage() {
 
       return matchesSearch && matchesFund && matchesType && matchesStatus && matchesStart && matchesEnd;
     });
-  }, [debouncedSearch, fundFilter, typeFilter, statusFilter, startDate, endDate]);
+  }, [transactions, debouncedSearch, fundFilter, typeFilter, statusFilter, startDate, endDate]);
 
   const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE) || 1;
   const paginatedTransactions = filteredTransactions.slice(
@@ -110,9 +166,9 @@ export default function TreasurerFundMonitoringPage() {
       <div className="p-4 md:p-6 max-w-[1400px] w-full mx-auto animate-fade-in flex-1 relative z-10 space-y-6 mt-2">
         
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {MOCK_ACTIVE_FUNDS.map((fund) => {
-            const isInsufficient = fund.pendingDisbursements > fund.balance;
-            const utilColor = fund.currentUtilization > 85 ? 'bg-red-500' : fund.currentUtilization > 60 ? 'bg-yellow-500' : 'bg-emerald-500';
+          {funds.map((fund) => {
+            const isInsufficient = Number(fund.pendingDisbursements || 0) > Number(fund.balance || 0);
+            const utilColor = (fund.currentUtilization || 0) > 85 ? 'bg-red-500' : (fund.currentUtilization || 0) > 60 ? 'bg-yellow-500' : 'bg-emerald-500';
 
             return (
               <div key={fund.id} className={`${ultraGlassCard} flex flex-col group hover:-translate-y-1 transition-transform duration-300`}>
@@ -133,17 +189,17 @@ export default function TreasurerFundMonitoringPage() {
                 <div className="mb-5">
                   <span className="block text-[11px] font-semibold text-[#04152d]/60 uppercase tracking-widest mb-1">Current Balance</span>
                   <span className="block text-[28px] font-semibold text-[#04152d] tracking-tighter leading-none">
-                    {formatCurrency(fund.balance)}
+                    {formatCurrency(Number(fund.balance || 0))}
                   </span>
                 </div>
 
                 <div className="space-y-1.5 mb-4">
                   <div className="flex justify-between text-[11px] font-medium text-[#04152d]/70">
                     <span>Utilization</span>
-                    <span className="font-semibold">{fund.currentUtilization}%</span>
+                    <span className="font-semibold">{fund.currentUtilization || 0}%</span>
                   </div>
                   <div className="h-1.5 w-full bg-white/80 rounded-full overflow-hidden border border-[#04152d]/5">
-                    <div className={`h-full rounded-full ${utilColor}`} style={{ width: `${fund.currentUtilization}%` }} />
+                    <div className={`h-full rounded-full ${utilColor}`} style={{ width: `${fund.currentUtilization || 0}%` }} />
                   </div>
                 </div>
 
@@ -153,7 +209,7 @@ export default function TreasurerFundMonitoringPage() {
                       <AlertCircle size={14} className="shrink-0 mt-0.5" />
                       <div>
                         <span className="block text-[11px] font-semibold uppercase tracking-widest">Insufficient Funds</span>
-                        <span className="block text-[11px] font-medium mt-0.5 leading-tight">Pending outflows ({formatCurrency(fund.pendingDisbursements)}) exceed available balance.</span>
+                        <span className="block text-[11px] font-medium mt-0.5 leading-tight">Pending outflows ({formatCurrency(Number(fund.pendingDisbursements || 0))}) exceed available balance.</span>
                       </div>
                     </div>
                   ) : (
@@ -187,7 +243,7 @@ export default function TreasurerFundMonitoringPage() {
                 <div className="relative w-full sm:w-auto">
                   <select value={fundFilter} onChange={(e) => setFundFilter(e.target.value)} className={`${glassInput} !pl-4 appearance-none pr-8 cursor-pointer w-full`}>
                     <option value="All">All Funds</option>
-                    {MOCK_ACTIVE_FUNDS.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
+                    {funds.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
                   </select>
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#04152d]/50 pointer-events-none" />
                 </div>

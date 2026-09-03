@@ -197,12 +197,6 @@ function HeaderContent({ unreadCount = 0 }: Props) {
                   <div className="px-4 py-2 border-b border-[#04152d]/10 mb-1">
                     <p className="text-[10px] font-semibold text-[#04152d]/50 uppercase tracking-widest">Account</p>
                   </div>
-                  <Link href="/profile" className="flex items-center gap-3 px-4 py-2.5 text-[12.5px] font-medium text-[#04152d] hover:bg-[#04152d]/5 transition-colors">
-                    <User size={15} className="text-[#04152d]/60" /> My Profile
-                  </Link>
-                  <Link href="/admin/settings" className="flex items-center gap-3 px-4 py-2.5 text-[12.5px] font-medium text-[#04152d] hover:bg-[#04152d]/5 transition-colors">
-                    <Settings size={15} className="text-[#04152d]/60" /> System Settings
-                  </Link>
                   <div className="h-px bg-[#04152d]/10 my-1 mx-3" />
                   <button onClick={triggerLogout} className="flex items-center gap-3 px-4 py-2.5 text-[12.5px] font-medium text-red-600 hover:bg-red-50 transition-colors text-left w-full outline-none">
                     <LogOut size={15} className="text-red-500" /> Sign Out

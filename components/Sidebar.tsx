@@ -62,9 +62,9 @@ export default function Sidebar() {
         { label: 'My Summary', href: '/member/dashboard', icon: PieChart, roles: ['User'] },
         { label: 'Collection Processing', href: '/member/collections', icon: UploadCloud, roles: ['User'] },
 
-        { label: 'User Management', href: '/admin/dashboard', icon: Users, roles: ['Officer/Admin'] },
-        { label: 'Fund Master', href: '/admin/funds', icon: Briefcase, roles: ['Officer/Admin'] },
-        { label: 'Settings', href: '/admin/settings', icon: Settings, roles: ['Officer/Admin'] },
+        // { label: 'User Management', href: '/admin/dashboard', icon: Users, roles: ['Officer/Admin'] },
+        // { label: 'Fund Master', href: '/admin/funds', icon: Briefcase, roles: ['Officer/Admin'] },
+        { label: 'Funds', href: '/admin/funds', icon: Briefcase, roles: ['Officer/Admin'] },
 
         { label: 'Dashboard', href: '/treasurer/dashboard', icon: LayoutDashboard, roles: ['Treasurer'] },
         { label: 'Collections', href: '/treasurer/collections', icon: WalletCards, roles: ['Treasurer'] },
@@ -72,7 +72,7 @@ export default function Sidebar() {
         { label: 'Funds', href: '/treasurer/funds', icon: Briefcase, roles: ['Treasurer'] },
         { label: 'Forecasting', href: '/treasurer/forecasting', icon: Activity, roles: ['Treasurer'] },
         
-        { label: 'Audit Overview', href: '/auditor/collections', icon: ClipboardList, roles: ['Auditor'] },
+        // { label: 'Audit Overview', href: '/auditor/collections', icon: ClipboardList, roles: ['Auditor'] },
         { label: 'Collections', href: '/auditor/collections', icon: FileText, roles: ['Auditor'] },
         { label: 'Disbursement', href: '/auditor/disbursement', icon: Send, roles: ['Auditor'] },
         { label: 'Funds', href: '/auditor/funds', icon: Briefcase, roles: ['Auditor'] },

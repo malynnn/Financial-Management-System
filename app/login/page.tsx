@@ -12,7 +12,7 @@ const TEST_ACCOUNTS = [
   { label: 'Member (Juan Dela Cruz)', email: 'member@fms.com', role: 'Member', icon: Users, route: '/member/dashboard' },
   { label: 'Treasurer (Maria Santos)', email: 'treasurer@fms.com', role: 'Treasurer', icon: Briefcase, route: '/treasurer/dashboard' },
   { label: 'Auditor (Audit Inspector)', email: 'auditor@fms.com', role: 'Auditor', icon: FileCheck, route: '/auditor/collections' },
-  { label: 'Officer / Admin', email: 'admin@fms.com', role: 'Officer/Admin', icon: Shield, route: '/admin/dashboard' },
+  { label: 'Officer / Admin', email: 'admin@fms.com', role: 'Officer/Admin', icon: Shield, route: '/admin/funds' },
 ];
 
 function LoginForm() {

@@ -42,28 +42,20 @@ export const INITIAL_DEFAULT_FUNDS = [
     status: 'Active',
   },
   {
+    name: 'Foreign Assistance Fund',
+    code: 'FAF',
+    description: 'International solidarity and foreign humanitarian assistance fund.',
+    openingBalance: 80000,
+    targetUtilization: 40,
+    status: 'Active',
+  },
+  {
     name: 'Loan Fund',
     code: 'LNF',
     description: 'Revolving fund for member credit facilities.',
     openingBalance: 850000,
     targetUtilization: 90,
     status: 'Active',
-  },
-  {
-    name: 'Calamity Fund',
-    code: 'CAL',
-    description: 'Emergency reserves for natural disasters.',
-    openingBalance: 300000,
-    targetUtilization: 60,
-    status: 'Active',
-  },
-  {
-    name: 'Legal Defense Fund',
-    code: 'LDF',
-    description: 'Retainer for union legal counsel.',
-    openingBalance: 95000,
-    targetUtilization: 30,
-    status: 'Inactive',
   },
 ];
 

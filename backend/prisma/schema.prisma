@@ -196,6 +196,7 @@ model Fund {
   transactions      FundTransaction[]
   collections       Collection[]
   disbursements     Disbursement[]
+  forecastRecords   ForecastRecord[]
 }
 
 model FundTransaction {
@@ -305,4 +306,34 @@ model FundTransfer {
 
   transferredById String
   transferredBy   User   @relation(fields: [transferredById], references: [id])
+}
+
+// ─────────────────────────────────────────
+// AI FORECASTING (FAI-011, FAI-012)
+// ─────────────────────────────────────────
+
+model ForecastRecord {
+  id               String   @id @default(cuid())
+  batchId          String
+  fundId           String
+  fundCode         String
+  fundName         String
+  forecastPeriod   String   // e.g. "2026-09"
+  forecastValue    Decimal  @db.Decimal(14, 2)
+  projectedInflow  Decimal  @default(0) @db.Decimal(14, 2)
+  projectedOutflow Decimal  @default(0) @db.Decimal(14, 2)
+  projectedNet     Decimal  @default(0) @db.Decimal(14, 2)
+  baselineBalance  Decimal  @default(0) @db.Decimal(14, 2)
+  trendDirection   String   @default("STABLE")
+  isValid          Boolean  @default(true)
+  generationDate   DateTime @default(now())
+  createdAt        DateTime @default(now())
+
+  fund             Fund     @relation(fields: [fundId], references: [id], onDelete: Cascade)
+
+  @@index([fundId])
+  @@index([fundCode])
+  @@index([forecastPeriod])
+  @@index([batchId])
+  @@index([isValid])
 }

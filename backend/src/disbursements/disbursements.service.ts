@@ -15,10 +15,11 @@ import { ReviewAction, ReviewDisbursementDto } from './dto/review-disbursement.d
 
 // Default mock fund balance values if table is unseeded
 const DEFAULT_FUNDS = [
-  { name: 'General Fund', totalBalance: 500000, availableBalance: 450000, reservedBalance: 50000 },
-  { name: 'Emergency Fund', totalBalance: 300000, availableBalance: 280000, reservedBalance: 20000 },
-  { name: 'Educational Fund', totalBalance: 200000, availableBalance: 180000, reservedBalance: 20000 },
-  { name: 'Calamity Fund', totalBalance: 250000, availableBalance: 250000, reservedBalance: 0 },
+  { name: 'Union Fund', totalBalance: 500000, availableBalance: 450000, reservedBalance: 50000 },
+  { name: 'General Fund', totalBalance: 250000, availableBalance: 240000, reservedBalance: 10000 },
+  { name: 'Death Assistance Fund', totalBalance: 150000, availableBalance: 140000, reservedBalance: 10000 },
+  { name: 'Foreign Assistance Fund', totalBalance: 80000, availableBalance: 80000, reservedBalance: 0 },
+  { name: 'Loan Fund', totalBalance: 850000, availableBalance: 800000, reservedBalance: 50000 },
 ];
 
 @Injectable()

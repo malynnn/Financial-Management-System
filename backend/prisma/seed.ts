@@ -119,7 +119,7 @@ async function main() {
   // ─────────────────────────────────────────────────────────────
   console.log('\n[3/7] Initializing Fund Allocation accounts/buckets with baseline balances...');
 
-  // Master Fund definitions (matching funds.service.ts and system design)
+  // Master Fund definitions: Union Fund, General Fund, Death Assistance Fund, Foreign Assistance Fund, Loan Fund
   const fundDefinitions = [
     {
       id: 'fnd-union-01',
@@ -140,39 +140,30 @@ async function main() {
       status: 'Active',
     },
     {
-      id: 'fnd-emergency-01',
-      name: 'Emergency Fund',
-      code: 'EMF',
-      description: 'Quick-response fund for member emergency assistance and urgent welfare.',
-      openingBalance: 300000.0,
-      targetUtilization: 85.0,
-      status: 'Active',
-    },
-    {
-      id: 'fnd-educational-01',
-      name: 'Educational Fund',
-      code: 'EDF',
-      description: 'Revolving fund providing educational and tuition aid to union members.',
-      openingBalance: 200000.0,
-      targetUtilization: 70.0,
-      status: 'Active',
-    },
-    {
-      id: 'fnd-calamity-01',
-      name: 'Calamity Fund',
-      code: 'CAL',
-      description: 'Emergency disaster response and calamity financial assistance.',
-      openingBalance: 250000.0,
-      targetUtilization: 60.0,
-      status: 'Active',
-    },
-    {
       id: 'fnd-death-01',
       name: 'Death Assistance Fund',
       code: 'DAF',
-      description: 'Restricted fund reserved for member bereavement support.',
+      description: 'Restricted fund reserved for member bereavement support and funeral assistance.',
       openingBalance: 150000.0,
       targetUtilization: 50.0,
+      status: 'Active',
+    },
+    {
+      id: 'fnd-foreign-01',
+      name: 'Foreign Assistance Fund',
+      code: 'FAF',
+      description: 'International solidarity, foreign humanitarian aid, and cross-border partnership assistance.',
+      openingBalance: 80000.0,
+      targetUtilization: 40.0,
+      status: 'Active',
+    },
+    {
+      id: 'fnd-loan-01',
+      name: 'Loan Fund',
+      code: 'LNF',
+      description: 'Revolving credit and micro-financing facilities for union members.',
+      openingBalance: 850000.0,
+      targetUtilization: 90.0,
       status: 'Active',
     },
   ];
@@ -208,12 +199,11 @@ async function main() {
 
   // Matching FundAccount buckets (used by disbursements module)
   const fundAccountDefinitions = [
-    { name: 'General Fund', totalBalance: 250000.0, availableBalance: 250000.0, reservedBalance: 0.0 },
-    { name: 'Emergency Fund', totalBalance: 300000.0, availableBalance: 300000.0, reservedBalance: 0.0 },
-    { name: 'Educational Fund', totalBalance: 200000.0, availableBalance: 200000.0, reservedBalance: 0.0 },
-    { name: 'Calamity Fund', totalBalance: 250000.0, availableBalance: 250000.0, reservedBalance: 0.0 },
     { name: 'Union Fund', totalBalance: 500000.0, availableBalance: 500000.0, reservedBalance: 0.0 },
+    { name: 'General Fund', totalBalance: 250000.0, availableBalance: 250000.0, reservedBalance: 0.0 },
     { name: 'Death Assistance Fund', totalBalance: 150000.0, availableBalance: 150000.0, reservedBalance: 0.0 },
+    { name: 'Foreign Assistance Fund', totalBalance: 80000.0, availableBalance: 80000.0, reservedBalance: 0.0 },
+    { name: 'Loan Fund', totalBalance: 850000.0, availableBalance: 850000.0, reservedBalance: 0.0 },
   ];
 
   for (const fa of fundAccountDefinitions) {
@@ -255,7 +245,7 @@ async function main() {
     {
       id: 'ob-juan-loan',
       memberId: 'usr-member-1',
-      obligationType: 'Emergency Loan',
+      obligationType: 'Member Multi-Purpose Loan',
       originalAmount: 5000.0,
       outstandingBalance: 5000.0,
       dueDate: new Date('2026-10-15'),
@@ -267,7 +257,7 @@ async function main() {
       beneficiaryName: 'Juan Dela Cruz',
       beneficiaryBank: 'BDO',
       beneficiaryAccount: '00123456789',
-      fundSource: 'Emergency Fund',
+      fundSource: 'Loan Fund',
     },
 
     // Maria Clara (usr-member-2)
@@ -291,7 +281,7 @@ async function main() {
     {
       id: 'ob-maria-edu',
       memberId: 'usr-member-2',
-      obligationType: 'Educational Loan',
+      obligationType: 'Educational Study Loan',
       originalAmount: 10000.0,
       outstandingBalance: 10000.0,
       dueDate: new Date('2026-11-30'),
@@ -303,7 +293,7 @@ async function main() {
       beneficiaryName: 'Maria Clara',
       beneficiaryBank: 'BPI',
       beneficiaryAccount: '98765432100',
-      fundSource: 'Educational Fund',
+      fundSource: 'Loan Fund',
     },
 
     // Crisostomo Ibarra (usr-member-3)
@@ -325,9 +315,9 @@ async function main() {
       fundSource: 'General Fund',
     },
     {
-      id: 'ob-crisostomo-calamity',
+      id: 'ob-crisostomo-bereavement',
       memberId: 'usr-member-3',
-      obligationType: 'Calamity Assistance Loan',
+      obligationType: 'Bereavement Support Loan',
       originalAmount: 8000.0,
       outstandingBalance: 8000.0, // Disbursed 8,000; then Collection 3 pays 4,000 -> 4,000 remaining
       dueDate: new Date('2026-10-31'),
@@ -339,7 +329,7 @@ async function main() {
       beneficiaryName: 'Crisostomo Ibarra',
       beneficiaryBank: 'Metrobank',
       beneficiaryAccount: '20498172635',
-      fundSource: 'Calamity Fund',
+      fundSource: 'Death Assistance Fund',
     },
 
     // Elias Salome (usr-member-4)
@@ -397,9 +387,9 @@ async function main() {
       fundSource: 'General Fund',
     },
     {
-      id: 'ob-sisa-welfare',
+      id: 'ob-sisa-solidarity',
       memberId: 'usr-member-5',
-      obligationType: 'Emergency Welfare Support',
+      obligationType: 'Cross-Border Solidarity Grant',
       originalAmount: 3000.0,
       outstandingBalance: 3000.0,
       dueDate: new Date('2026-11-15'),
@@ -411,7 +401,7 @@ async function main() {
       beneficiaryName: 'Sisa Narcisa',
       beneficiaryBank: 'RCBC',
       beneficiaryAccount: '11223344556',
-      fundSource: 'General Fund',
+      fundSource: 'Foreign Assistance Fund',
     },
   ];
 
@@ -634,25 +624,25 @@ async function main() {
     },
   });
 
-  // Collection 3: Crisostomo Ibarra - Calamity Assistance Loan Partial Repayment (POSTED)
+  // Collection 3: Crisostomo Ibarra - Bereavement Support Loan Partial Repayment (POSTED)
   const col3 = await prisma.collection.create({
     data: {
-      id: 'col-crisostomo-calamity-03',
+      id: 'col-crisostomo-bereavement-03',
       collectionRefNo: 'COL-2026-00003',
       memberId: 'usr-member-3',
-      fundId: 'fnd-calamity-01',
+      fundId: 'fnd-death-01',
       paymentAmount: new Prisma.Decimal(4000.0),
       paymentDate: new Date('2026-08-25'),
       paymentMethod: PaymentMethod.BANK_TRANSFER,
       paymentReference: 'MBTC-20260825-998',
-      description: '1st Installment payment for Calamity Assistance Loan',
+      description: '1st Installment repayment for Bereavement Support Loan',
       status: CollectionStatus.POSTED,
       isReadyForReconciliation: true,
       proofOfPaymentName: 'ibarra_metrobank_receipt.png',
       proofOfPaymentPath: 'uploads/proofs/ibarra_metrobank_receipt.png',
       application: {
         create: {
-          obligationId: 'ob-crisostomo-calamity',
+          obligationId: 'ob-crisostomo-bereavement',
           originalBalance: new Prisma.Decimal(8000.0),
           appliedAmount: new Prisma.Decimal(4000.0),
           remainingBalance: new Prisma.Decimal(4000.0),
@@ -671,7 +661,7 @@ async function main() {
             actor: 'Crisostomo Ibarra',
             role: 'Member',
             timestamp: new Date('2026-08-25T15:00:00Z'),
-            details: 'Member submitted partial payment of ₱4,000.00 for Calamity Loan.',
+            details: 'Member submitted partial payment of ₱4,000.00 for Bereavement Support Loan.',
           },
           {
             userId: 'usr-member-3',
@@ -702,24 +692,24 @@ async function main() {
 
   // Update Crisostomo's obligation to PARTIALLY_PAID
   await prisma.financialObligation.update({
-    where: { id: 'ob-crisostomo-calamity' },
+    where: { id: 'ob-crisostomo-bereavement' },
     data: {
       outstandingBalance: new Prisma.Decimal(4000.0),
       status: 'PARTIALLY_PAID',
     },
   });
 
-  // Credit FundTransaction to Calamity Fund
+  // Credit FundTransaction to Death Assistance Fund
   await prisma.fundTransaction.create({
     data: {
-      fundId: 'fnd-calamity-01',
+      fundId: 'fnd-death-01',
       transactionRef: 'COL-2026-00003',
       transactionType: 'Inflow (Collection)',
       amount: new Prisma.Decimal(4000.0),
       status: 'Posted',
       referenceType: 'COLLECTION',
       referenceId: col3.id,
-      description: 'Collection posted from Crisostomo Ibarra: Calamity Assistance Loan',
+      description: 'Collection posted from Crisostomo Ibarra: Bereavement Support Loan',
       date: new Date('2026-08-25'),
     },
   });
@@ -808,22 +798,22 @@ async function main() {
   // ─────────────────────────────────────────────────────────────
   console.log('\n[6/7] Seeding disbursements, deducting fund balances, and updating obligations...');
 
-  // Disbursement 1: Juan Dela Cruz - Emergency Loan (EXECUTED)
+  // Disbursement 1: Juan Dela Cruz - Multi-Purpose Loan (EXECUTED)
   const disb1 = await prisma.disbursement.create({
     data: {
-      id: 'disb-juan-emergency-01',
+      id: 'disb-juan-loan-01',
       disbursementRefNo: 'REQ-2026-0001',
       obligationId: 'ob-juan-loan',
       memberId: 'usr-member-1',
       disbursedById: 'usr-treasurer-1',
       amount: new Prisma.Decimal(5000.0),
-      fundSource: 'Emergency Fund',
-      fundId: 'fnd-emergency-01',
+      fundSource: 'Loan Fund',
+      fundId: 'fnd-loan-01',
       paymentMethod: PaymentMethod.BANK_TRANSFER,
       beneficiaryName: 'Juan Dela Cruz',
       beneficiaryBank: 'BDO',
       beneficiaryAccount: '00123456789',
-      description: 'Emergency assistance loan disbursement',
+      description: 'Member multi-purpose loan release',
       status: DisbursementStatus.EXECUTED,
       executionRefNo: 'PAY-991001',
       isReadyForReconciliation: true,
@@ -839,7 +829,7 @@ async function main() {
             actor: 'Maria Santos',
             role: 'Treasurer',
             timestamp: new Date('2026-08-19T10:00:00Z'),
-            details: 'Requested release of ₱5,000.00 for Emergency Loan to BDO account 00123456789.',
+            details: 'Requested release of ₱5,000.00 for Multi-Purpose Loan to BDO account 00123456789.',
           },
           {
             userId: 'usr-treasurer-1',
@@ -878,17 +868,17 @@ async function main() {
     },
   });
 
-  // Outflow transaction on Emergency Fund
+  // Outflow transaction on Loan Fund
   await prisma.fundTransaction.create({
     data: {
-      fundId: 'fnd-emergency-01',
+      fundId: 'fnd-loan-01',
       transactionRef: 'PAY-991001',
       transactionType: 'Outflow (Disbursement)',
       amount: new Prisma.Decimal(5000.0),
       status: 'Posted',
       referenceType: 'DISBURSEMENT',
       referenceId: disb1.id,
-      description: 'Disbursement released to Juan Dela Cruz: Emergency assistance loan disbursement',
+      description: 'Disbursement released to Juan Dela Cruz: Member multi-purpose loan release',
       date: new Date('2026-08-20'),
     },
   });
@@ -902,13 +892,13 @@ async function main() {
       memberId: 'usr-member-2',
       disbursedById: 'usr-treasurer-1',
       amount: new Prisma.Decimal(10000.0),
-      fundSource: 'Educational Fund',
-      fundId: 'fnd-educational-01',
+      fundSource: 'Loan Fund',
+      fundId: 'fnd-loan-01',
       paymentMethod: PaymentMethod.BANK_TRANSFER,
       beneficiaryName: 'Maria Clara',
       beneficiaryBank: 'BPI',
       beneficiaryAccount: '98765432100',
-      description: 'Educational tuition assistance disbursement',
+      description: 'Educational tuition assistance study loan disbursement',
       status: DisbursementStatus.EXECUTED,
       executionRefNo: 'PAY-991002',
       isReadyForReconciliation: true,
@@ -963,37 +953,37 @@ async function main() {
     },
   });
 
-  // Outflow transaction on Educational Fund
+  // Outflow transaction on Loan Fund
   await prisma.fundTransaction.create({
     data: {
-      fundId: 'fnd-educational-01',
+      fundId: 'fnd-loan-01',
       transactionRef: 'PAY-991002',
       transactionType: 'Outflow (Disbursement)',
       amount: new Prisma.Decimal(10000.0),
       status: 'Posted',
       referenceType: 'DISBURSEMENT',
       referenceId: disb2.id,
-      description: 'Disbursement released to Maria Clara: Educational tuition assistance disbursement',
+      description: 'Disbursement released to Maria Clara: Educational study loan disbursement',
       date: new Date('2026-08-22'),
     },
   });
 
-  // Disbursement 3: Crisostomo Ibarra - Calamity Loan (EXECUTED)
+  // Disbursement 3: Crisostomo Ibarra - Bereavement Support (EXECUTED)
   const disb3 = await prisma.disbursement.create({
     data: {
-      id: 'disb-crisostomo-calamity-03',
+      id: 'disb-crisostomo-bereavement-03',
       disbursementRefNo: 'REQ-2026-0003',
-      obligationId: 'ob-crisostomo-calamity',
+      obligationId: 'ob-crisostomo-bereavement',
       memberId: 'usr-member-3',
       disbursedById: 'usr-treasurer-1',
       amount: new Prisma.Decimal(8000.0),
-      fundSource: 'Calamity Fund',
-      fundId: 'fnd-calamity-01',
+      fundSource: 'Death Assistance Fund',
+      fundId: 'fnd-death-01',
       paymentMethod: PaymentMethod.BANK_TRANSFER,
       beneficiaryName: 'Crisostomo Ibarra',
       beneficiaryBank: 'Metrobank',
       beneficiaryAccount: '20498172635',
-      description: 'Calamity assistance grant and relief disbursement',
+      description: 'Bereavement assistance emergency disbursement',
       status: DisbursementStatus.EXECUTED,
       executionRefNo: 'PAY-991003',
       isReadyForReconciliation: true,
@@ -1009,7 +999,7 @@ async function main() {
             actor: 'Maria Santos',
             role: 'Treasurer',
             timestamp: new Date('2026-08-22T14:00:00Z'),
-            details: 'Requested release of ₱8,000.00 for Calamity Assistance to Metrobank account 20498172635.',
+            details: 'Requested release of ₱8,000.00 for Bereavement Support to Metrobank account 20498172635.',
           },
           {
             userId: 'usr-treasurer-1',
@@ -1020,7 +1010,7 @@ async function main() {
             actor: 'Maria Santos',
             role: 'Treasurer',
             timestamp: new Date('2026-08-22T17:00:00Z'),
-            details: 'Emergency relief approved under expedited protocol.',
+            details: 'Bereavement assistance approved under expedited funeral support protocol.',
           },
           {
             userId: 'usr-treasurer-1',
@@ -1038,9 +1028,9 @@ async function main() {
     },
   });
 
-  // Update Crisostomo's Calamity Loan to Fully Disbursed
+  // Update Crisostomo's Loan to Fully Disbursed
   await prisma.financialObligation.update({
-    where: { id: 'ob-crisostomo-calamity' },
+    where: { id: 'ob-crisostomo-bereavement' },
     data: {
       disbursedAmount: new Prisma.Decimal(8000.0),
       remainingLoanAmount: new Prisma.Decimal(0.0),
@@ -1048,17 +1038,17 @@ async function main() {
     },
   });
 
-  // Outflow transaction on Calamity Fund
+  // Outflow transaction on Death Assistance Fund
   await prisma.fundTransaction.create({
     data: {
-      fundId: 'fnd-calamity-01',
+      fundId: 'fnd-death-01',
       transactionRef: 'PAY-991003',
       transactionType: 'Outflow (Disbursement)',
       amount: new Prisma.Decimal(8000.0),
       status: 'Posted',
       referenceType: 'DISBURSEMENT',
       referenceId: disb3.id,
-      description: 'Disbursement released to Crisostomo Ibarra: Calamity assistance grant and relief disbursement',
+      description: 'Disbursement released to Crisostomo Ibarra: Bereavement assistance emergency disbursement',
       date: new Date('2026-08-23'),
     },
   });
@@ -1111,21 +1101,21 @@ async function main() {
     },
   });
 
-  // Disbursement 5: Sisa Narcisa - Welfare Support (PENDING_APPROVAL)
+  // Disbursement 5: Sisa Narcisa - Cross-Border Solidarity Grant (PENDING_APPROVAL)
   await prisma.disbursement.create({
     data: {
-      id: 'disb-sisa-welfare-05',
+      id: 'disb-sisa-solidarity-05',
       disbursementRefNo: 'REQ-2026-0005',
-      obligationId: 'ob-sisa-welfare',
+      obligationId: 'ob-sisa-solidarity',
       memberId: 'usr-member-5',
       amount: new Prisma.Decimal(3000.0),
-      fundSource: 'General Fund',
-      fundId: 'fnd-general-01',
+      fundSource: 'Foreign Assistance Fund',
+      fundId: 'fnd-foreign-01',
       paymentMethod: PaymentMethod.CASH,
       beneficiaryName: 'Sisa Narcisa',
       beneficiaryBank: 'RCBC',
       beneficiaryAccount: '11223344556',
-      description: 'Emergency welfare support application awaiting committee review',
+      description: 'Cross-border humanitarian solidarity grant application awaiting committee review',
       status: DisbursementStatus.PENDING_APPROVAL,
       isReadyForReconciliation: false,
       date: new Date('2026-09-03'),
@@ -1140,7 +1130,7 @@ async function main() {
             actor: 'Maria Santos',
             role: 'Treasurer',
             timestamp: new Date('2026-09-03T09:00:00Z'),
-            details: 'Requested welfare disbursement of ₱3,000.00 for Sisa Narcisa.',
+            details: 'Requested solidarity grant disbursement of ₱3,000.00 for Sisa Narcisa from Foreign Assistance Fund.',
           },
         ],
       },
@@ -1154,14 +1144,14 @@ async function main() {
   // ─────────────────────────────────────────────────────────────
   console.log('\n[7/7] Recording inter-fund transfer and reconciling all dynamic balances...');
 
-  // Seed Inter-Fund Transfer: ₱20,000 from General Fund to Emergency Fund
+  // Seed Inter-Fund Transfer: ₱20,000 from General Fund to Loan Fund
   const transferAmount = 20000.0;
   const transferRecord = await prisma.fundTransfer.create({
     data: {
       amount: new Prisma.Decimal(transferAmount),
       fromAccount: 'General Fund',
-      toAccount: 'Emergency Fund',
-      description: 'Authorized re-allocation to replenish Emergency Fund liquidity',
+      toAccount: 'Loan Fund',
+      description: 'Authorized capital infusion from General Fund to Loan Fund revolving facility',
       transferredById: 'usr-treasurer-1',
       date: new Date('2026-08-17'),
     },
@@ -1177,25 +1167,89 @@ async function main() {
       status: 'Posted',
       referenceType: 'TRANSFER',
       referenceId: transferRecord.id,
-      description: 'Transfer Out to Emergency Fund for liquidity replenishment',
+      description: 'Transfer Out to Loan Fund for revolving credit capital infusion',
       date: new Date('2026-08-17'),
     },
   });
 
-  // Inflow transaction on Emergency Fund for transfer
+  // Inflow transaction on Loan Fund for transfer
   await prisma.fundTransaction.create({
     data: {
-      fundId: 'fnd-emergency-01',
+      fundId: 'fnd-loan-01',
       transactionRef: `TRF-IN-${transferRecord.id.slice(-6).toUpperCase()}`,
       transactionType: 'Transfer In',
       amount: new Prisma.Decimal(transferAmount),
       status: 'Posted',
       referenceType: 'TRANSFER',
       referenceId: transferRecord.id,
-      description: 'Transfer In from General Fund for liquidity replenishment',
+      description: 'Transfer In from General Fund for revolving credit capital infusion',
       date: new Date('2026-08-17'),
     },
   });
+
+  // ─────────────────────────────────────────────────────────────
+  // 6.5 AI FORECASTING: Multi-month historical time-series ledger (FAI-001 through FAI-008)
+  // Seeds posted transactions across 2026-05, 2026-06, 2026-07 to satisfy the 3+ period requirement
+  // ─────────────────────────────────────────────────────────────
+  console.log('\n[6.5/7] Seeding historical time-series posted transactions for AI Forecasting Module...');
+
+  const historicalSeedTxs = [
+    // Union Fund (fnd-union-01)
+    { fundId: 'fnd-union-01', ref: 'HIST-UNF-202605', type: 'Inflow (Collection)', amount: 40000.0, date: new Date('2026-05-10'), desc: 'May Union Member Dues Batch' },
+    { fundId: 'fnd-union-01', ref: 'HIST-UNF-202605-OUT', type: 'Outflow (Disbursement)', amount: 15000.0, date: new Date('2026-05-22'), desc: 'May Union Activities and Operations' },
+    { fundId: 'fnd-union-01', ref: 'HIST-UNF-202606', type: 'Inflow (Collection)', amount: 45000.0, date: new Date('2026-06-12'), desc: 'June Union Member Dues Batch' },
+    { fundId: 'fnd-union-01', ref: 'HIST-UNF-202606-OUT', type: 'Outflow (Disbursement)', amount: 20000.0, date: new Date('2026-06-25'), desc: 'June Member General Assembly Expense' },
+    { fundId: 'fnd-union-01', ref: 'HIST-UNF-202607', type: 'Inflow (Collection)', amount: 50000.0, date: new Date('2026-07-08'), desc: 'July Union Member Dues Batch' },
+    { fundId: 'fnd-union-01', ref: 'HIST-UNF-202607-OUT', type: 'Outflow (Disbursement)', amount: 18000.0, date: new Date('2026-07-22'), desc: 'July Education Seminar Expense' },
+
+    // General Fund (fnd-general-01)
+    { fundId: 'fnd-general-01', ref: 'HIST-GEN-202605', type: 'Inflow (Collection)', amount: 30000.0, date: new Date('2026-05-05'), desc: 'May General Administration Inflows' },
+    { fundId: 'fnd-general-01', ref: 'HIST-GEN-202605-OUT', type: 'Outflow (Disbursement)', amount: 25000.0, date: new Date('2026-05-18'), desc: 'May Office Operations & Utilities' },
+    { fundId: 'fnd-general-01', ref: 'HIST-GEN-202606', type: 'Inflow (Collection)', amount: 32000.0, date: new Date('2026-06-10'), desc: 'June General Administration Inflows' },
+    { fundId: 'fnd-general-01', ref: 'HIST-GEN-202606-OUT', type: 'Outflow (Disbursement)', amount: 28000.0, date: new Date('2026-06-20'), desc: 'June Facility Maintenance' },
+    { fundId: 'fnd-general-01', ref: 'HIST-GEN-202607', type: 'Inflow (Collection)', amount: 29000.0, date: new Date('2026-07-07'), desc: 'July General Administration Inflows' },
+    { fundId: 'fnd-general-01', ref: 'HIST-GEN-202607-OUT', type: 'Outflow (Disbursement)', amount: 27000.0, date: new Date('2026-07-19'), desc: 'July Administrative Supplies' },
+
+    // Death Assistance Fund (fnd-death-01)
+    { fundId: 'fnd-death-01', ref: 'HIST-DAF-202605', type: 'Inflow (Collection)', amount: 18000.0, date: new Date('2026-05-15'), desc: 'May Bereavement Mutual Aid Inflow' },
+    { fundId: 'fnd-death-01', ref: 'HIST-DAF-202605-OUT', type: 'Outflow (Disbursement)', amount: 6000.0, date: new Date('2026-05-28'), desc: 'May Bereavement Emergency Claim' },
+    { fundId: 'fnd-death-01', ref: 'HIST-DAF-202606', type: 'Inflow (Collection)', amount: 20000.0, date: new Date('2026-06-14'), desc: 'June Bereavement Mutual Aid Inflow' },
+    { fundId: 'fnd-death-01', ref: 'HIST-DAF-202606-OUT', type: 'Outflow (Disbursement)', amount: 8000.0, date: new Date('2026-06-26'), desc: 'June Funeral Support Disbursement' },
+    { fundId: 'fnd-death-01', ref: 'HIST-DAF-202607', type: 'Inflow (Collection)', amount: 22000.0, date: new Date('2026-07-16'), desc: 'July Bereavement Mutual Aid Inflow' },
+    { fundId: 'fnd-death-01', ref: 'HIST-DAF-202607-OUT', type: 'Outflow (Disbursement)', amount: 10000.0, date: new Date('2026-07-29'), desc: 'July Bereavement Assistance Release' },
+
+    // Foreign Assistance Fund (fnd-foreign-01)
+    { fundId: 'fnd-foreign-01', ref: 'HIST-FAF-202605', type: 'Inflow (Collection)', amount: 12000.0, date: new Date('2026-05-08'), desc: 'May Foreign Solidarity Contribution' },
+    { fundId: 'fnd-foreign-01', ref: 'HIST-FAF-202605-OUT', type: 'Outflow (Disbursement)', amount: 4000.0, date: new Date('2026-05-24'), desc: 'May Cross-Border Humanitarian Aid' },
+    { fundId: 'fnd-foreign-01', ref: 'HIST-FAF-202606', type: 'Inflow (Collection)', amount: 15000.0, date: new Date('2026-06-06'), desc: 'June Foreign Solidarity Contribution' },
+    { fundId: 'fnd-foreign-01', ref: 'HIST-FAF-202606-OUT', type: 'Outflow (Disbursement)', amount: 5000.0, date: new Date('2026-06-22'), desc: 'June International Partner Support' },
+    { fundId: 'fnd-foreign-01', ref: 'HIST-FAF-202607', type: 'Inflow (Collection)', amount: 16000.0, date: new Date('2026-07-09'), desc: 'July Foreign Solidarity Contribution' },
+    { fundId: 'fnd-foreign-01', ref: 'HIST-FAF-202607-OUT', type: 'Outflow (Disbursement)', amount: 6000.0, date: new Date('2026-07-25'), desc: 'July Cross-Border Grant Release' },
+
+    // Loan Fund (fnd-loan-01)
+    { fundId: 'fnd-loan-01', ref: 'HIST-LNF-202605', type: 'Inflow (Collection)', amount: 75000.0, date: new Date('2026-05-08'), desc: 'May Loan Amortization Collections' },
+    { fundId: 'fnd-loan-01', ref: 'HIST-LNF-202605-OUT', type: 'Outflow (Disbursement)', amount: 45000.0, date: new Date('2026-05-20'), desc: 'May Member Micro-Financing Releases' },
+    { fundId: 'fnd-loan-01', ref: 'HIST-LNF-202606', type: 'Inflow (Collection)', amount: 80000.0, date: new Date('2026-06-08'), desc: 'June Loan Amortization Collections' },
+    { fundId: 'fnd-loan-01', ref: 'HIST-LNF-202606-OUT', type: 'Outflow (Disbursement)', amount: 50000.0, date: new Date('2026-06-24'), desc: 'June Multi-Purpose Loan Releases' },
+    { fundId: 'fnd-loan-01', ref: 'HIST-LNF-202607', type: 'Inflow (Collection)', amount: 85000.0, date: new Date('2026-07-11'), desc: 'July Loan Amortization Collections' },
+    { fundId: 'fnd-loan-01', ref: 'HIST-LNF-202607-OUT', type: 'Outflow (Disbursement)', amount: 55000.0, date: new Date('2026-07-25'), desc: 'July Emergency Member Loans' },
+  ];
+
+  for (const htx of historicalSeedTxs) {
+    await prisma.fundTransaction.create({
+      data: {
+        fundId: htx.fundId,
+        transactionRef: htx.ref,
+        transactionType: htx.type,
+        amount: new Prisma.Decimal(htx.amount),
+        status: 'Posted',
+        referenceType: htx.type.includes('Inflow') ? 'COLLECTION' : 'DISBURSEMENT',
+        description: htx.desc,
+        date: htx.date,
+      },
+    });
+  }
+  console.log(`✓ Seeded ${historicalSeedTxs.length} historical time-series posted transactions across 5 funds.`);
 
   // Reconcile dynamic balances in master Fund table
   // Each fund's currentBalance = openingBalance + inflows (collections, transfers in) - outflows (disbursements, transfers out)
@@ -1255,7 +1309,7 @@ async function main() {
       },
     });
 
-    console.log(`  • ${fund.name.padEnd(22)}: Total: ₱${calculatedBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })} | Available: ₱${availableAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} | Reserved: ₱${reservedAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+    console.log(`  • ${fund.name.padEnd(25)}: Total: ₱${calculatedBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })} | Available: ₱${availableAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} | Reserved: ₱${reservedAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
   }
 
   console.log('\n====================================================');

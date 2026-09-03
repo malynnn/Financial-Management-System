@@ -4,6 +4,9 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 const PRESET_USERS: Record<string, { id: string; name: string; email: string; role: string }> = {
   'member@fms.com': { id: 'usr-member-1', name: 'Juan Dela Cruz', email: 'member@fms.com', role: 'member' },
   'maria@fms.com': { id: 'usr-member-2', name: 'Maria Clara', email: 'maria@fms.com', role: 'member' },
+  'crisostomo@fms.com': { id: 'usr-member-3', name: 'Crisostomo Ibarra', email: 'crisostomo@fms.com', role: 'member' },
+  'elias@fms.com': { id: 'usr-member-4', name: 'Elias Salome', email: 'elias@fms.com', role: 'member' },
+  'sisa@fms.com': { id: 'usr-member-5', name: 'Sisa Narcisa', email: 'sisa@fms.com', role: 'member' },
   'treasurer@fms.com': { id: 'usr-treasurer-1', name: 'Maria Santos', email: 'treasurer@fms.com', role: 'treasurer' },
   'admin@fms.com': { id: 'usr-admin-1', name: 'Admin Officer', email: 'admin@fms.com', role: 'admin' },
   'auditor@fms.com': { id: 'usr-auditor-1', name: 'Audit Inspector', email: 'auditor@fms.com', role: 'auditor' },
@@ -37,6 +40,15 @@ export const authOptions: AuthOptions = {
         }
         if (rawInput.includes('maria') || rawInput.includes('clara')) {
           return PRESET_USERS['maria@fms.com'];
+        }
+        if (rawInput.includes('crisostomo') || rawInput.includes('ibarra')) {
+          return PRESET_USERS['crisostomo@fms.com'];
+        }
+        if (rawInput.includes('elias') || rawInput.includes('salome')) {
+          return PRESET_USERS['elias@fms.com'];
+        }
+        if (rawInput.includes('sisa') || rawInput.includes('narcisa')) {
+          return PRESET_USERS['sisa@fms.com'];
         }
         if (rawInput.includes('member') || rawInput.includes('juan')) {
           return PRESET_USERS['member@fms.com'];

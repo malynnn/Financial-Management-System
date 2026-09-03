@@ -19,6 +19,25 @@ services:
       timeout: 5s
       retries: 5
 
+  # ─── RabbitMQ Message Broker ────────────────────────
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: fms_rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-fms_guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-fms_guest_pass}
+    ports:
+      - '5672:5672'    # AMQP protocol port
+      - '15672:15672'  # RabbitMQ Management Web UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ─── NestJS Backend ─────────────────────────────────
   backend:
     build:
@@ -29,12 +48,16 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       PORT: 3001
       MICROSERVICE_HOST: 0.0.0.0
       MICROSERVICE_PORT: 3002
       DATABASE_URL: postgresql://${POSTGRES_USER:-fms_user}:${POSTGRES_PASSWORD:-fms_password}@postgres:5432/${POSTGRES_DB:-fms_db}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-fms_guest}:${RABBITMQ_PASSWORD:-fms_guest_pass}@rabbitmq:5672
+      RABBITMQ_QUEUE: ${RABBITMQ_QUEUE:-fms_events_queue}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
@@ -44,3 +67,4 @@ services:
 
 volumes:
   postgres_data:
+  rabbitmq_data:

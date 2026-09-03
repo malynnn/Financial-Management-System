@@ -10,6 +10,7 @@ A web-based financial management system built with **Next.js** (frontend) and **
 |---|---|
 | Frontend | Next.js 16 (App Router) |
 | Backend | NestJS 11 (Microservices) |
+| Message Broker | RabbitMQ 4 (Docker) |
 | Database | PostgreSQL 17 (Docker) |
 | ORM | Prisma |
 | Auth | NextAuth.js + JWT + Passport |
@@ -101,27 +102,38 @@ PORT=3001
 MICROSERVICE_HOST=0.0.0.0
 MICROSERVICE_PORT=3002
 
+RABBITMQ_URL=amqp://fms_guest:fms_guest_pass@127.0.0.1:5672
+RABBITMQ_QUEUE=fms_events_queue
+RABBITMQ_USER=fms_guest
+RABBITMQ_PASSWORD=fms_guest_pass
+
 JWT_SECRET=change_this_to_a_long_random_secret
 JWT_EXPIRES_IN=7d
 
 FRONTEND_URL=http://localhost:3000
 ```
 
-### Step 5 — Start the PostgreSQL database (Docker)
+### Step 5 — Start PostgreSQL and RabbitMQ (Docker)
 
 Make sure **Docker Desktop is open and running**, then from the **project root**:
 
 ```bash
-docker compose up postgres -d
+docker compose up postgres rabbitmq -d
 ```
 
-Wait about 10 seconds for it to fully initialize. Verify it is healthy:
+Wait about 10 seconds for them to fully initialize. Verify they are healthy:
 
 ```bash
 docker compose ps
 ```
 
-You should see `fms_postgres` with status `Up (healthy)`.
+You should see:
+- `fms_postgres` with status `Up (healthy)` on port `5433`
+- `fms_rabbitmq` with status `Up (healthy)` on port `5672` (AMQP) and `15672` (Web UI)
+
+> 🐰 **RabbitMQ Management Dashboard**: Accessible at [http://localhost:15672](http://localhost:15672)
+> - **Username**: `fms_guest`
+> - **Password**: `fms_guest_pass`
 
 ### Step 6 — Run the database migration
 

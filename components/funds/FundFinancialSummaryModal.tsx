@@ -17,10 +17,13 @@ interface FundSummaryProps {
   } | null;
 }
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 export default function FundFinancialSummaryModal({ isOpen, onClose, fund }: FundSummaryProps) {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [apiSummary, setApiSummary] = useState<any | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -29,19 +32,42 @@ export default function FundFinancialSummaryModal({ isOpen, onClose, fund }: Fun
       const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
       setStartDate(firstDay);
       setEndDate(lastDay);
-      setIsLoading(true);
-      setTimeout(() => setIsLoading(false), 600);
     }
   }, [isOpen, fund]);
 
+  const fetchSummary = async () => {
+    if (!isOpen || !fund) return;
+    try {
+      setIsLoading(true);
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+
+      const res = await fetch(`${API_BASE_URL}/funds/${fund.id}/summary?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.summary) {
+          setApiSummary(data.summary);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch financial summary from backend, using fallback estimation.', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (isOpen && startDate && endDate) {
-      setIsLoading(true);
-      setTimeout(() => setIsLoading(false), 500);
+      fetchSummary();
     }
-  }, [startDate, endDate, isOpen]);
+  }, [startDate, endDate, isOpen, fund]);
 
   const summaryData = useMemo(() => {
+    if (apiSummary) {
+      return apiSummary;
+    }
     if (!fund) return null;
     const variation = startDate ? (new Date(startDate).getDate() % 5) * 1000 : 0;
     
@@ -51,7 +77,7 @@ export default function FundFinancialSummaryModal({ isOpen, onClose, fund }: Fun
     const utilizationPercent = Math.min(100, Math.max(0, (outflows / (fund.balance + outflows)) * 100));
 
     return { inflows, outflows, netFlow, utilizationPercent };
-  }, [fund, startDate, endDate]);
+  }, [fund, startDate, endDate, apiSummary]);
 
   if (!isOpen || !fund || !summaryData) return null;
 

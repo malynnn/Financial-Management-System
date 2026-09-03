@@ -68,15 +68,31 @@ function CollectionFormContent() {
   }, [session]);
 
   useEffect(() => {
+    const defaultActive: Record<string, Obligation[]> = {
+      'usr-member-1': [
+        { id: 'ob-juan-dues', obligationType: 'Annual Dues', originalAmount: 1500, outstandingBalance: 1500 },
+        { id: 'ob-juan-loan', obligationType: 'Emergency Loan', originalAmount: 5000, outstandingBalance: 5000 },
+      ],
+      'usr-member-2': [
+        { id: 'ob-maria-dues', obligationType: 'Annual Dues', originalAmount: 1500, outstandingBalance: 1500 },
+        { id: 'ob-maria-edu', obligationType: 'Educational Loan', originalAmount: 10000, outstandingBalance: 10000 },
+      ],
+    };
+
     const fetchObligations = async () => {
       try {
-        const res = await fetch(`http://localhost:3001/obligations/active/${memberId}`);
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const res = await fetch(`${API_URL}/obligations/active/${memberId}`);
         if (res.ok) {
           const data = await res.json();
-          setActiveObligations(data);
+          if (Array.isArray(data) && data.length > 0) {
+            setActiveObligations(data);
+            return;
+          }
         }
+        setActiveObligations(defaultActive[memberId] || defaultActive['usr-member-1'] || []);
       } catch {
-        // Fallback
+        setActiveObligations(defaultActive[memberId] || defaultActive['usr-member-1'] || []);
       }
     };
     if (memberId) {

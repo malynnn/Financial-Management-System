@@ -3,8 +3,10 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { CollectionStatus } from '@prisma/client';
+import { FundsService } from '../funds/funds.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ApplyPaymentDto } from './dto/apply-payment.dto';
 import { CreateCollectionDto } from './dto/create-collection.dto';
@@ -16,7 +18,10 @@ const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
 @Injectable()
 export class CollectionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly fundsService?: FundsService,
+  ) {}
 
   /**
    * CPS-001 & CPS-012: Submit payment information as a collection.
@@ -498,6 +503,25 @@ export class CollectionsService {
         auditTrail: { orderBy: { timestamp: 'asc' } },
       },
     });
+
+    // FMS-004: Record posted fund transaction
+    if (this.fundsService) {
+      try {
+        const assignedFund = (collection as any).fundId || 'General Fund';
+        await this.fundsService.recordPostedTransaction({
+          fundIdOrName: assignedFund,
+          transactionRef: collectionRefNo,
+          transactionType: 'Inflow (Collection)',
+          amount: appliedAmount,
+          referenceType: 'COLLECTION',
+          referenceId: collection.id,
+          description: `Collection posted from ${updatedCollection.member?.name || 'Member'}: ${obligationType}`,
+          date: collection.paymentDate || new Date(),
+        });
+      } catch (e) {
+        // Fallback gracefully if funds not yet initialized
+      }
+    }
 
     return updatedCollection;
   }

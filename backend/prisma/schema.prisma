@@ -126,6 +126,10 @@ model Collection {
   isReadyForReconciliation Boolean          @default(false)
   reconciledAt            DateTime?
 
+  // FMS-002: Assigned Fund
+  fundId                  String?
+  fund                    Fund?                   @relation(fields: [fundId], references: [id])
+
   createdAt               DateTime         @default(now())
   updatedAt               DateTime         @updatedAt
 
@@ -173,6 +177,49 @@ model CollectionAuditLog {
 }
 
 // ─────────────────────────────────────────
+// FUND MANAGEMENT (FMS-001 through FMS-005)
+// ─────────────────────────────────────────
+
+model Fund {
+  id                String            @id @default(cuid())
+  name              String            @unique
+  code              String            @unique
+  description       String?
+  openingBalance    Decimal           @default(0) @db.Decimal(14, 2)
+  currentBalance    Decimal           @default(0) @db.Decimal(14, 2)
+  targetUtilization Decimal           @default(80) @db.Decimal(5, 2)
+  status            String            @default("Active") // "Active" | "Inactive"
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  transactions      FundTransaction[]
+  collections       Collection[]
+  disbursements     Disbursement[]
+}
+
+model FundTransaction {
+  id              String   @id @default(cuid())
+  fundId          String
+  transactionRef  String
+  transactionType String   // "Inflow (Collection)", "Outflow (Disbursement)", "Opening Balance", "Transfer In", "Transfer Out"
+  amount          Decimal  @db.Decimal(14, 2)
+  status          String   @default("Posted") // "Posted", "Pending"
+  referenceType   String?  // "COLLECTION", "DISBURSEMENT", "OPENING_BALANCE", "TRANSFER"
+  referenceId     String?
+  description     String?
+  date            DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  fund            Fund     @relation(fields: [fundId], references: [id], onDelete: Cascade)
+
+  @@index([fundId])
+  @@index([transactionRef])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────
 // FUND ACCOUNT (DMP-006, DMP-007)
 // ─────────────────────────────────────────
 
@@ -197,6 +244,7 @@ model Disbursement {
   memberId           String
   amount             Decimal            @db.Decimal(12, 2)
   fundSource         String             @default("General Fund")
+  fundId             String?
   paymentMethod      PaymentMethod      @default(BANK_TRANSFER)
   beneficiaryName    String
   beneficiaryBank    String?
@@ -214,6 +262,7 @@ model Disbursement {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
+  fund               Fund?              @relation(fields: [fundId], references: [id])
   disbursedById      String?
   disbursedBy        User?              @relation(fields: [disbursedById], references: [id])
   obligation         FinancialObligation? @relation(fields: [obligationId], references: [id])

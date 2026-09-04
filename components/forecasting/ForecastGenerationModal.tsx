@@ -84,7 +84,7 @@ export default function ForecastGenerationModal({
         <div className="flex items-center justify-between border-b border-white/60 pb-4 mb-5 shrink-0">
           <h3 className="text-[18px] font-semibold text-[#04152d] tracking-tight flex items-center gap-2">
             <BrainCircuit className="text-emerald-600" size={20} />
-            AI Forecast Generation (Sprint 4)
+            AI Forecast Generation
           </h3>
           <button onClick={() => !isGenerating && onClose()} disabled={isGenerating} className="p-2 bg-white/50 hover:bg-white/80 rounded-full border border-white shadow-sm disabled:opacity-50 transition-colors outline-none">
             <X size={16} className="text-[#04152d]/60 hover:text-[#04152d]" />
@@ -103,10 +103,10 @@ export default function ForecastGenerationModal({
             </div>
             <h4 className="text-[14px] font-semibold text-[#04152d] tracking-tight relative z-10">
               {isGenerating 
-                ? loadingStep === 1 ? 'FAI-001: Retrieving validated fund ledgers...' 
-                : loadingStep === 2 ? 'FAI-002: Organizing Pandas DataFrames by period...' 
-                : 'FAI-003 to FAI-006: Applying Time-Series Forecasting Model...'
-                : 'Pandas Forecasting Engine Ready'}
+                ? loadingStep === 1 ? 'Retrieving validated fund ledgers...' 
+                : loadingStep === 2 ? 'Organizing by period...' 
+                : 'Applying Time-Series Forecasting Model...'
+                : 'Forecasting Engine Ready'}
             </h4>
             
             {/* modal purpose & scope definitions */}
@@ -162,7 +162,7 @@ export default function ForecastGenerationModal({
             disabled={isGenerating} 
             className="w-full relative overflow-hidden px-5 py-3 bg-gradient-to-b from-emerald-500 to-emerald-700 text-white border border-emerald-800 shadow-[0_6px_20px_rgba(16,185,129,0.3),inset_0_1px_1px_rgba(255,255,255,0.2)] hover:shadow-[0_8px_25px_rgba(16,185,129,0.4),inset_0_1px_1px_rgba(255,255,255,0.3)] hover:from-emerald-400 hover:to-emerald-600 rounded-[12px] text-[13px] font-semibold transition-all duration-300 flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
           >
-            {isGenerating ? 'Running Pandas Forecasting Model...' : 'Run Forecast Model'}
+            {isGenerating ? 'Running Forecasting Model...' : 'Run Forecast Model'}
           </button>
         </div>
 

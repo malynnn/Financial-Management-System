@@ -65,6 +65,8 @@ export default function Sidebar() {
         // { label: 'User Management', href: '/admin/dashboard', icon: Users, roles: ['Officer/Admin'] },
         // { label: 'Fund Master', href: '/admin/funds', icon: Briefcase, roles: ['Officer/Admin'] },
         { label: 'Funds', href: '/admin/funds', icon: Briefcase, roles: ['Officer/Admin'] },
+        { label: 'Disbursement', href: '/admin/disbursement', icon: Send, roles: ['Officer/Admin'] },
+
 
         { label: 'Dashboard', href: '/treasurer/dashboard', icon: LayoutDashboard, roles: ['Treasurer'] },
         { label: 'Collections', href: '/treasurer/collections', icon: WalletCards, roles: ['Treasurer'] },

@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   Optional,
@@ -239,9 +240,18 @@ export class DisbursementsService {
   /**
    * DMP-008: Authorized Approval Rule & DMP-012: Audit Trail
    * The system shall allow approval only when the disbursement request has passed all required validation
-   * and fund availability checks.
+   * and fund availability checks. Authorized approver is the Admin.
    */
   async reviewDisbursement(id: string, dto: ReviewDisbursementDto) {
+    // DMP-008: Verify Authorized Approver is Admin
+    const role = (dto.reviewerRole || '').trim().toUpperCase();
+    const authorizedAdminRoles = ['ADMIN', 'OFFICER/ADMIN', 'SUPERADMIN', 'ADMIN APPROVER', 'APPROVER', 'OFFICER_ADMIN'];
+    if (role && !authorizedAdminRoles.includes(role)) {
+      throw new ForbiddenException(
+        `DMP-008: Unauthorized. Only an authorized Admin approver can approve or reject disbursement requests. Provided role: "${dto.reviewerRole}".`,
+      );
+    }
+
     const disbursement = await this.prisma.disbursement.findUnique({
       where: { id },
       include: { obligation: true },
@@ -257,7 +267,26 @@ export class DisbursementsService {
       );
     }
 
-    // DMP-008: Check fund availability before approval
+    // DMP-008: Precondition - Validated disbursement checks (linked loan obligation)
+    if (disbursement.obligation) {
+      const loanStatus = (disbursement.obligation.loanStatus || disbursement.obligation.status || '').toLowerCase();
+      if (loanStatus === 'rejected' || loanStatus === 'cancelled') {
+        throw new BadRequestException(
+          `DMP-008: Cannot approve disbursement. Linked loan obligation is ${disbursement.obligation.loanStatus || disbursement.obligation.status}.`,
+        );
+      }
+
+      const approvedAmount = Number(disbursement.obligation.approvedAmount ?? disbursement.obligation.originalAmount);
+      const disbursedAmount = Number(disbursement.obligation.disbursedAmount ?? 0);
+      const remainingLoanAmount = Number(disbursement.obligation.remainingLoanAmount ?? (approvedAmount - disbursedAmount));
+      if (Number(disbursement.amount) > remainingLoanAmount) {
+        throw new BadRequestException(
+          `DMP-008: Cannot approve disbursement. Requested amount (₱${Number(disbursement.amount).toLocaleString()}) exceeds remaining loan amount (₱${remainingLoanAmount.toLocaleString()}).`,
+        );
+      }
+    }
+
+    // DMP-008: Fund availability check before approval
     if (dto.action === ReviewAction.APPROVE) {
       const fund = await this.getFundBalance(disbursement.fundSource);
       if (fund.availableBalance < Number(disbursement.amount)) {
@@ -278,6 +307,9 @@ export class DisbursementsService {
         ? `Disbursement request approved for fund release of ₱${Number(disbursement.amount).toLocaleString()}.`
         : `Disbursement request rejected. Reason: ${dto.rejectionReason || 'Not specified'}`;
 
+    const effectiveRole = dto.reviewerRole || 'Admin';
+    const effectiveActor = dto.reviewerName || 'Admin Approver';
+
     // DMP-012: Record audit trail for status change
     return this.prisma.disbursement.update({
       where: { id },
@@ -290,8 +322,8 @@ export class DisbursementsService {
             action: actionText,
             previousStatus: disbursement.status,
             newStatus,
-            actor: dto.reviewerName || 'Admin Approver',
-            role: dto.reviewerRole || 'Approver',
+            actor: effectiveActor,
+            role: effectiveRole,
             details: detailText,
           },
         },

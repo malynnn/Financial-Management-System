@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import Header from '@/components/Header';
 import DisbursementActionModal from '@/components/disbursement/DisbursementActionModal';
+import { API_BASE_URL } from '@/lib/config';
 
 const MOCK_DISBURSEMENTS = Array.from({ length: 15 }).map((_, index) => {
   const statuses = ['Pending Approval', 'Approved', 'Executed', 'Rejected'];
@@ -37,7 +38,14 @@ export default function AdminDisbursementPage() {
   const { data: session } = useSession();
   
   // Explicitly enforcing the Admin role for the Action Modal logic
-  const currentUserRole = 'Officer/Admin';
+  let currentUserRole = 'Officer/Admin';
+  const rawRole = (session?.user as { role?: string })?.role;
+  if (rawRole) {
+    const formatted = rawRole.charAt(0).toUpperCase() + rawRole.slice(1).toLowerCase();
+    if (formatted === 'Admin' || formatted === 'Superadmin' || formatted === 'Officer/Admin') {
+      currentUserRole = 'Officer/Admin';
+    }
+  }
 
   const [disbursements, setDisbursements] = useState<any[]>(MOCK_DISBURSEMENTS);
   const [isLoading, setIsLoading] = useState(false);
@@ -58,7 +66,7 @@ export default function AdminDisbursementPage() {
   const fetchDisbursementsFromApi = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch('http://localhost:3001/disbursements');
+      const res = await fetch(`${API_BASE_URL}/disbursements`);
       if (res.ok) {
         const json = await res.json();
         if (json.data && json.data.length > 0) {
@@ -91,13 +99,14 @@ export default function AdminDisbursementPage() {
   };
 
   const handleActionSuccess = (id: string, newStatus: string, executionRef?: string) => {
+    const actorName = session?.user?.name || 'Admin Approver';
     setDisbursements(prev => prev.map(d => {
       if (d.id === id) {
         const newLog = {
           id: `at-new-${Date.now()}`,
           action: newStatus === 'Approved' ? 'Request Approved' : newStatus === 'Rejected' ? 'Request Rejected' : 'Payment Executed',
-          actor: 'Admin Approver',
-          role: 'Approver',
+          actor: actorName,
+          role: currentUserRole,
           timestamp: new Date().toISOString(),
           details: newStatus === 'Executed' ? `Funds released with reference ${executionRef}.` : `Status updated to ${newStatus}.`
         };

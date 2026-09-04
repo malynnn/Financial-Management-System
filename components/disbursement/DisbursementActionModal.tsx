@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { 
   X, CheckCircle2, XCircle, FileText, Loader2, ShieldCheck, Play, Info, Clock, User, Lock
 } from 'lucide-react';
@@ -39,12 +40,15 @@ interface Props {
 }
 
 export default function DisbursementActionModal({ isOpen, onClose, disbursement, currentUserRole, onProcessSuccess }: Props) {
+  const { data: session } = useSession();
   const [step, setStep] = useState<'view' | 'input_reject' | 'confirm_approve' | 'confirm_reject' | 'confirm_execute'>('view');
   const [rejectReason, setRejectReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // uuthorization check: only Admins can approve. Treasurers can only execute.
+  // Authorization check: only Admins can approve. Treasurers can only execute.
   const isAuthorizedApprover = currentUserRole === 'Officer/Admin' || currentUserRole === 'Superadmin' || currentUserRole === 'Admin';
+  const reviewerName = session?.user?.name || 'Admin Approver';
+  const reviewerRole = currentUserRole || 'Officer/Admin';
 
   useEffect(() => {
     if (isOpen) {
@@ -64,8 +68,8 @@ export default function DisbursementActionModal({ isOpen, onClose, disbursement,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'APPROVE',
-          reviewerName: 'Admin Approver',
-          reviewerRole: 'Approver',
+          reviewerName,
+          reviewerRole,
         }),
       });
       if (!res.ok) throw new Error('Failed to approve');
@@ -87,8 +91,8 @@ export default function DisbursementActionModal({ isOpen, onClose, disbursement,
         body: JSON.stringify({
           action: 'REJECT',
           rejectionReason: rejectReason,
-          reviewerName: 'Admin Approver',
-          reviewerRole: 'Approver',
+          reviewerName,
+          reviewerRole,
         }),
       });
       if (!res.ok) throw new Error('Failed to reject');

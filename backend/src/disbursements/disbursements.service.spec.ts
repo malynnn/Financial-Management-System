@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DisbursementStatus, PaymentMethod, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -252,7 +252,7 @@ describe('DisbursementsService (Sprint 2: DMP-001 - DMP-014)', () => {
   });
 
   describe('DMP-008: Authorized Approval Rule', () => {
-    it('should allow approval when disbursement passes fund availability check', async () => {
+    it('should allow approval when disbursement passes fund availability check by an Admin', async () => {
       mockPrismaService.disbursement.findUnique.mockResolvedValue({
         id: 'disb-1',
         status: DisbursementStatus.PENDING_APPROVAL,
@@ -269,9 +269,98 @@ describe('DisbursementsService (Sprint 2: DMP-001 - DMP-014)', () => {
       const result = await service.reviewDisbursement('disb-1', {
         action: ReviewAction.APPROVE,
         reviewerName: 'Admin Officer',
+        reviewerRole: 'Officer/Admin',
       });
 
       expect(result.status).toBe(DisbursementStatus.APPROVED);
+    });
+
+    it('should reject approval with ForbiddenException if reviewer is NOT an authorized Admin', async () => {
+      await expect(
+        service.reviewDisbursement('disb-1', {
+          action: ReviewAction.APPROVE,
+          reviewerName: 'Treasurer Maria',
+          reviewerRole: 'Treasurer',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+
+      await expect(
+        service.reviewDisbursement('disb-1', {
+          action: ReviewAction.APPROVE,
+          reviewerName: 'Auditor Pedro',
+          reviewerRole: 'Auditor',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+
+      await expect(
+        service.reviewDisbursement('disb-1', {
+          action: ReviewAction.APPROVE,
+          reviewerName: 'Member Juan',
+          reviewerRole: 'Member',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should reject review if disbursement status is not PENDING_APPROVAL', async () => {
+      mockPrismaService.disbursement.findUnique.mockResolvedValue({
+        id: 'disb-1',
+        status: DisbursementStatus.APPROVED,
+        amount: new Prisma.Decimal(25000),
+      });
+
+      await expect(
+        service.reviewDisbursement('disb-1', {
+          action: ReviewAction.APPROVE,
+          reviewerName: 'Admin Approver',
+          reviewerRole: 'Admin',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject approval if linked loan obligation is rejected or cancelled', async () => {
+      mockPrismaService.disbursement.findUnique.mockResolvedValue({
+        id: 'disb-1',
+        status: DisbursementStatus.PENDING_APPROVAL,
+        amount: new Prisma.Decimal(25000),
+        fundSource: 'General Fund',
+        obligation: {
+          id: 'obl-1',
+          loanStatus: 'Rejected',
+          status: 'REJECTED',
+        },
+      });
+
+      await expect(
+        service.reviewDisbursement('disb-1', {
+          action: ReviewAction.APPROVE,
+          reviewerName: 'Admin Approver',
+          reviewerRole: 'Admin',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject approval if requested amount exceeds remaining loan amount', async () => {
+      mockPrismaService.disbursement.findUnique.mockResolvedValue({
+        id: 'disb-1',
+        status: DisbursementStatus.PENDING_APPROVAL,
+        amount: new Prisma.Decimal(60000),
+        fundSource: 'General Fund',
+        obligation: {
+          id: 'obl-1',
+          loanStatus: 'Approved',
+          approvedAmount: new Prisma.Decimal(50000),
+          disbursedAmount: new Prisma.Decimal(0),
+          remainingLoanAmount: new Prisma.Decimal(50000),
+        },
+      });
+
+      await expect(
+        service.reviewDisbursement('disb-1', {
+          action: ReviewAction.APPROVE,
+          reviewerName: 'Admin Approver',
+          reviewerRole: 'Admin',
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should reject approval if Available Fund is less than requested amount', async () => {
@@ -291,8 +380,41 @@ describe('DisbursementsService (Sprint 2: DMP-001 - DMP-014)', () => {
         service.reviewDisbursement('disb-1', {
           action: ReviewAction.APPROVE,
           reviewerName: 'Admin Officer',
+          reviewerRole: 'Admin',
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should allow rejection with reason by an Admin', async () => {
+      mockPrismaService.disbursement.findUnique.mockResolvedValue({
+        id: 'disb-1',
+        status: DisbursementStatus.PENDING_APPROVAL,
+        amount: new Prisma.Decimal(25000),
+        fundSource: 'General Fund',
+        disbursementRefNo: 'REQ-1001',
+      });
+      mockPrismaService.disbursement.update.mockResolvedValue({
+        id: 'disb-1',
+        status: DisbursementStatus.REJECTED,
+      });
+
+      const result = await service.reviewDisbursement('disb-1', {
+        action: ReviewAction.REJECT,
+        rejectionReason: 'Invalid account number documentation',
+        reviewerName: 'Admin Officer',
+        reviewerRole: 'Officer/Admin',
+      });
+
+      expect(result.status).toBe(DisbursementStatus.REJECTED);
+      expect(mockPrismaService.disbursement.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'disb-1' },
+          data: expect.objectContaining({
+            status: DisbursementStatus.REJECTED,
+            rejectionReason: 'Invalid account number documentation',
+          }),
+        }),
+      );
     });
   });
 

@@ -8,42 +8,20 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, Re
 import Header from '@/components/Header';
 import FundFinancialSummaryModal from '@/components/funds/FundFinancialSummaryModal';
 
-const MOCK_ALL_FUNDS = [
-  { id: 'FND-001', name: 'Union Fund', code: 'UNF', balance: 500000, targetUtilization: 80, status: 'Active' },
-  { id: 'FND-002', name: 'General Fund', code: 'GEN', balance: 250000, targetUtilization: 75, status: 'Active' },
-  { id: 'FND-003', name: 'Death Assistance Fund', code: 'DAF', balance: 150000, targetUtilization: 50, status: 'Active' },
-  { id: 'FND-005', name: 'Loan Fund', code: 'LNF', balance: 850000, targetUtilization: 90, status: 'Active' },
-  { id: 'FND-006', name: 'Calamity Fund', code: 'CAL', balance: 300000, targetUtilization: 60, status: 'Active' },
-  { id: 'FND-008', name: 'Legal Defense Fund', code: 'LDF', balance: 95000, targetUtilization: 30, status: 'Inactive' },
-];
-
-const MOCK_ACTIVE_FUNDS = [
-  { id: 'FND-001', name: 'Union Fund', code: 'UNF', balance: 500000, pendingDisbursements: 25000, currentUtilization: 45 },
-  { id: 'FND-002', name: 'General Fund', code: 'GEN', balance: 250000, pendingDisbursements: 12000, currentUtilization: 65 },
-  { id: 'FND-003', name: 'Death Assistance Fund', code: 'DAF', balance: 15000, pendingDisbursements: 20000, currentUtilization: 95 },
-  { id: 'FND-005', name: 'Loan Fund', code: 'LNF', balance: 850000, pendingDisbursements: 150000, currentUtilization: 80 },
-  { id: 'FND-006', name: 'Calamity Fund', code: 'CAL', balance: 300000, pendingDisbursements: 0, currentUtilization: 10 },
-];
-
-const MOCK_TRANSACTIONS = Array.from({ length: 45 }).map((_, i) => {
-  const types = ['Inflow (Collection)', 'Outflow (Disbursement)'];
-  const type = types[i % 2];
-  const funds = MOCK_ACTIVE_FUNDS.map(f => f.name);
-  
-  return {
-    id: `TXN-${5000 + i}`,
-    fundName: funds[i % funds.length],
-    amount: (i * 1250) + 500,
-    type: type,
-    date: new Date(Date.now() - (i * 86400000)).toISOString().split('T')[0],
-    status: i % 7 === 0 ? 'Pending' : 'Posted'
-  };
-});
-
 const ITEMS_PER_PAGE = 10;
 const CHART_COLORS = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#1d4ed8', '#1e40af'];
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 export default function AuditorFundOversightPage() {
+  const [funds, setFunds] = useState<any[]>([]);
+  const [isFundsLoading, setIsFundsLoading] = useState(true);
+
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [isTransactionsLoading, setIsTransactionsLoading] = useState(false);
+  const [totalTransactions, setTotalTransactions] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [fundFilter, setFundFilter] = useState('All');
@@ -56,6 +34,62 @@ export default function AuditorFundOversightPage() {
   const [selectedFund, setSelectedFund] = useState<any | null>(null);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
 
+  // Fetch all funds from database backend (same source as Admin)
+  const fetchFunds = async () => {
+    try {
+      setIsFundsLoading(true);
+      const res = await fetch(`${API_BASE_URL}/funds`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.funds)) {
+          setFunds(data.funds);
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch funds from backend.', err);
+    } finally {
+      setIsFundsLoading(false);
+    }
+  };
+
+  // Fetch transaction ledger from database backend
+  const fetchLedger = async () => {
+    try {
+      setIsTransactionsLoading(true);
+      const params = new URLSearchParams();
+      if (fundFilter !== 'All') params.append('fundName', fundFilter);
+      if (typeFilter !== 'All') params.append('type', typeFilter);
+      if (statusFilter !== 'All') params.append('status', statusFilter);
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      if (debouncedSearch) params.append('search', debouncedSearch);
+      params.append('page', String(currentPage));
+      params.append('limit', String(ITEMS_PER_PAGE));
+
+      const res = await fetch(`${API_BASE_URL}/funds/transactions/ledger?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.data)) {
+          setTransactions(data.data);
+          setTotalPages(data.totalPages || 1);
+          setTotalTransactions(data.total || 0);
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch transactions ledger from backend.', err);
+    } finally {
+      setIsTransactionsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFunds();
+  }, []);
+
+  useEffect(() => {
+    fetchLedger();
+  }, [currentPage, debouncedSearch, fundFilter, typeFilter, statusFilter, startDate, endDate]);
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchInput), 300);
     return () => clearTimeout(timer);
@@ -65,39 +99,26 @@ export default function AuditorFundOversightPage() {
     setCurrentPage(1);
   }, [debouncedSearch, fundFilter, typeFilter, statusFilter, startDate, endDate]);
 
-  const filteredTransactions = useMemo(() => {
-    return MOCK_TRANSACTIONS.filter(t => {
-      const matchesSearch = t.id.toLowerCase().includes(debouncedSearch.toLowerCase());
-      const matchesFund = fundFilter === 'All' || t.fundName === fundFilter;
-      const matchesType = typeFilter === 'All' || t.type === typeFilter;
-      const matchesStatus = statusFilter === 'All' || t.status === statusFilter;
-      
-      const txDate = new Date(t.date);
-      const matchesStart = startDate ? txDate >= new Date(startDate) : true;
-      const matchesEnd = endDate ? txDate <= new Date(endDate) : true;
+  const totalSystemBalance = useMemo(() => {
+    return funds.reduce((sum, f) => sum + Number(f.balance || 0), 0);
+  }, [funds]);
 
-      return matchesSearch && matchesFund && matchesType && matchesStatus && matchesStart && matchesEnd;
-    });
-  }, [debouncedSearch, fundFilter, typeFilter, statusFilter, startDate, endDate]);
+  const activeFunds = useMemo(() => {
+    return funds.filter(f => f.status === 'Active');
+  }, [funds]);
 
-  const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE) || 1;
-  const paginatedTransactions = filteredTransactions.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
-
-  const totalSystemBalance = MOCK_ALL_FUNDS.reduce((sum, f) => sum + f.balance, 0);
-  const activeFundsCount = MOCK_ALL_FUNDS.filter(f => f.status === 'Active').length;
+  const activeFundsCount = activeFunds.length;
+  const inactiveFundsCount = funds.filter(f => f.status === 'Inactive').length;
   
   const chartData = useMemo(() => {
-    return MOCK_ALL_FUNDS.filter(f => f.status === 'Active').map(f => ({
+    return activeFunds.map(f => ({
       name: f.code,
       fullName: f.name,
-      balance: f.balance
+      balance: Number(f.balance || 0)
     }));
-  }, []);
+  }, [activeFunds]);
 
-  const formatCurrency = (val: number) => `₱${val.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+  const formatCurrency = (val: number) => `₱${Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
   const getPageNumbers = () => {
     const maxVisible = 5;
@@ -150,7 +171,7 @@ export default function AuditorFundOversightPage() {
               </div>
               <div className={`h-full flex flex-col justify-center ${ultraGlassCard} !p-5`}>
                 <span className="block text-[10px] font-semibold text-[#04152d]/50 uppercase tracking-widest mb-1 flex items-center gap-1.5"><PowerOff size={12}/> Inactive</span>
-                <span className="block text-[28px] font-semibold text-gray-500 tracking-tighter leading-none">{MOCK_ALL_FUNDS.length - activeFundsCount}</span>
+                <span className="block text-[28px] font-semibold text-gray-500 tracking-tighter leading-none">{inactiveFundsCount}</span>
               </div>
             </div>
           </div>
@@ -183,9 +204,10 @@ export default function AuditorFundOversightPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {MOCK_ACTIVE_FUNDS.map((fund) => {
-            const isInsufficient = fund.pendingDisbursements > fund.balance;
-            const utilColor = fund.currentUtilization > 85 ? 'bg-red-500' : fund.currentUtilization > 60 ? 'bg-yellow-500' : 'bg-emerald-500';
+          {activeFunds.map((fund) => {
+            const isInsufficient = Number(fund.pendingDisbursements || 0) > Number(fund.balance || 0);
+            const util = Number(fund.currentUtilization || 0);
+            const utilColor = util > 85 ? 'bg-red-500' : util > 60 ? 'bg-yellow-500' : 'bg-emerald-500';
 
             return (
               <div key={fund.id} className={`${ultraGlassCard} flex flex-col group hover:-translate-y-1 transition-transform duration-300`}>
@@ -206,17 +228,17 @@ export default function AuditorFundOversightPage() {
                 <div className="mb-5">
                   <span className="block text-[11px] font-semibold text-[#04152d]/60 uppercase tracking-widest mb-1">Current Balance</span>
                   <span className="block text-[28px] font-semibold text-[#04152d] tracking-tighter leading-none">
-                    {formatCurrency(fund.balance)}
+                    {formatCurrency(Number(fund.balance || 0))}
                   </span>
                 </div>
 
                 <div className="space-y-1.5 mb-4">
                   <div className="flex justify-between text-[11px] font-medium text-[#04152d]/70">
                     <span>Utilization</span>
-                    <span className="font-semibold">{fund.currentUtilization}%</span>
+                    <span className="font-semibold">{util}%</span>
                   </div>
                   <div className="h-1.5 w-full bg-white/80 rounded-full overflow-hidden border border-[#04152d]/5">
-                    <div className={`h-full rounded-full ${utilColor}`} style={{ width: `${fund.currentUtilization}%` }} />
+                    <div className={`h-full rounded-full ${utilColor}`} style={{ width: `${Math.min(100, Math.max(0, util))}%` }} />
                   </div>
                 </div>
 
@@ -226,7 +248,7 @@ export default function AuditorFundOversightPage() {
                       <AlertCircle size={14} className="shrink-0 mt-0.5" />
                       <div>
                         <span className="block text-[11px] font-semibold uppercase tracking-widest">Insufficient Funds</span>
-                        <span className="block text-[11px] font-medium mt-0.5 leading-tight">Pending outflows ({formatCurrency(fund.pendingDisbursements)}) exceed available balance.</span>
+                        <span className="block text-[11px] font-medium mt-0.5 leading-tight">Pending outflows ({formatCurrency(Number(fund.pendingDisbursements || 0))}) exceed available balance.</span>
                       </div>
                     </div>
                   ) : (
@@ -260,7 +282,7 @@ export default function AuditorFundOversightPage() {
                 <div className="relative w-full sm:w-auto">
                   <select value={fundFilter} onChange={(e) => setFundFilter(e.target.value)} className={`${glassInput} !pl-4 appearance-none pr-8 cursor-pointer w-full`}>
                     <option value="All">All Funds</option>
-                    {MOCK_ACTIVE_FUNDS.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
+                    {funds.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
                   </select>
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#04152d]/50 pointer-events-none" />
                 </div>
@@ -270,6 +292,18 @@ export default function AuditorFundOversightPage() {
                     <option value="All">All Types</option>
                     <option value="Inflow (Collection)">Inflows</option>
                     <option value="Outflow (Disbursement)">Outflows</option>
+                    <option value="Opening Balance">Opening Balance</option>
+                    <option value="Transfer In">Transfers In</option>
+                    <option value="Transfer Out">Transfers Out</option>
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#04152d]/50 pointer-events-none" />
+                </div>
+
+                <div className="relative w-full sm:w-auto">
+                  <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={`${glassInput} !pl-4 appearance-none pr-8 cursor-pointer w-full`}>
+                    <option value="All">All Statuses</option>
+                    <option value="Posted">Posted</option>
+                    <option value="Pending">Pending</option>
                   </select>
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#04152d]/50 pointer-events-none" />
                 </div>
@@ -279,7 +313,7 @@ export default function AuditorFundOversightPage() {
                   <input 
                     type="date" 
                     value={startDate} 
-                    max={endDate || undefined} // Strict Date Constraint
+                    max={endDate || undefined}
                     onChange={(e) => setStartDate(e.target.value)} 
                     className="bg-transparent text-[12px] font-semibold text-[#04152d] outline-none w-28 [&::-webkit-calendar-picker-indicator]:opacity-50 cursor-pointer" 
                   />
@@ -287,7 +321,7 @@ export default function AuditorFundOversightPage() {
                   <input 
                     type="date" 
                     value={endDate} 
-                    min={startDate || undefined} // Strict Date Constraint
+                    min={startDate || undefined}
                     onChange={(e) => setEndDate(e.target.value)} 
                     className="bg-transparent text-[12px] font-semibold text-[#04152d] outline-none w-28 [&::-webkit-calendar-picker-indicator]:opacity-50 cursor-pointer" 
                   />
@@ -309,28 +343,36 @@ export default function AuditorFundOversightPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/60 text-[13px] text-[#04152d] bg-white/30">
-                {paginatedTransactions.length > 0 ? (
+                {transactions.length > 0 ? (
                   <>
-                    {paginatedTransactions.map((tx) => (
-                      <tr key={tx.id} className="hover:bg-white/70 transition-colors">
-                        <td className="py-4 px-6 font-mono text-[12px] font-semibold text-blue-600">{tx.id}</td>
-                        <td className="py-4 px-6 font-semibold text-[#04152d]">{tx.fundName}</td>
-                        <td className="py-4 px-6">
-                          <span className={`px-2 py-0.5 rounded text-[11px] font-medium border ${tx.type.includes('Inflow') ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>
-                            {tx.type}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6 text-[#04152d]/70 font-medium">{tx.date}</td>
-                        <td className="py-4 px-6 text-right font-semibold text-[14px] tracking-tight">{formatCurrency(tx.amount)}</td>
-                        <td className="py-4 px-6 text-center">
-                          {tx.status === 'Posted' ? (
-                            <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-[10px] font-semibold uppercase tracking-widest shadow-sm">Posted</span>
-                          ) : (
-                            <span className="px-2.5 py-1 bg-gray-100 text-gray-600 border border-gray-200 rounded-md text-[10px] font-semibold uppercase tracking-widest shadow-sm">Pending</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    {transactions.map((tx) => {
+                      const typeStr = tx.type || '';
+                      const isPositive = typeStr.includes('Inflow') || typeStr.includes('Opening') || typeStr.includes('Transfer In');
+                      const badgeColor = isPositive 
+                        ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                        : 'bg-yellow-50 text-yellow-700 border-yellow-200';
+
+                      return (
+                        <tr key={tx.id} className="hover:bg-white/70 transition-colors">
+                          <td className="py-4 px-6 font-mono text-[12px] font-semibold text-blue-600">{tx.id}</td>
+                          <td className="py-4 px-6 font-semibold text-[#04152d]">{tx.fundName}</td>
+                          <td className="py-4 px-6">
+                            <span className={`px-2 py-0.5 rounded text-[11px] font-medium border ${badgeColor}`}>
+                              {tx.type}
+                            </span>
+                          </td>
+                          <td className="py-4 px-6 text-[#04152d]/70 font-medium">{tx.date}</td>
+                          <td className="py-4 px-6 text-right font-semibold text-[14px] tracking-tight">{formatCurrency(tx.amount)}</td>
+                          <td className="py-4 px-6 text-center">
+                            {tx.status === 'Posted' ? (
+                              <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-[10px] font-semibold uppercase tracking-widest shadow-sm">Posted</span>
+                            ) : (
+                              <span className="px-2.5 py-1 bg-gray-100 text-gray-600 border border-gray-200 rounded-md text-[10px] font-semibold uppercase tracking-widest shadow-sm">{tx.status || 'Pending'}</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                     
                     {currentPage === totalPages && (
                       <tr>
@@ -362,7 +404,7 @@ export default function AuditorFundOversightPage() {
           {totalPages > 1 && (
             <div className="p-4 border-t border-white/60 bg-white/40 flex items-center justify-between">
               <p className="text-[12px] text-[#04152d]/60 font-medium hidden sm:block">
-                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredTransactions.length)} of {filteredTransactions.length} entries
+                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, totalTransactions)} of {totalTransactions} entries
               </p>
               
               <div className="flex items-center gap-1 mx-auto sm:mx-0">

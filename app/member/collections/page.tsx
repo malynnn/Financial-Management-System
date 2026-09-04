@@ -9,6 +9,7 @@ import {
   Send, Loader2, FileText, X, ChevronDown, User, Calendar, Receipt, CreditCard, Info, ExternalLink
 } from 'lucide-react';
 import Header from '@/components/Header';
+import { API_BASE_URL } from '@/lib/config';
 
 const SYSTEM_PAYMENT_METHODS = ["GCash", "Maya", "Bank Transfer", "Over-the-Counter", "Salary Deduction"];
 const MAX_FILE_SIZE_MB = 5;
@@ -81,8 +82,7 @@ function CollectionFormContent() {
 
     const fetchObligations = async () => {
       try {
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-        const res = await fetch(`${API_URL}/obligations/active/${memberId}`);
+        const res = await fetch(`${API_BASE_URL}/obligations/active/${memberId}`);
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data) && data.length > 0) {
@@ -196,7 +196,7 @@ function CollectionFormContent() {
     else if (paymentMethod === 'Salary Deduction') mappedMethod = 'OTHER';
 
     try {
-      const res = await fetch('http://localhost:3001/collections', {
+      const res = await fetch(`${API_BASE_URL}/collections`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -220,7 +220,7 @@ function CollectionFormContent() {
         const formData = new FormData();
         formData.append('file', proofFile);
 
-        const proofRes = await fetch(`http://localhost:3001/collections/${collection.id}/proof`, {
+        const proofRes = await fetch(`${API_BASE_URL}/collections/${collection.id}/proof`, {
           method: 'POST',
           body: formData,
         });

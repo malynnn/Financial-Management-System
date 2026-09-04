@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, Loader2, Send, CreditCard, Banknote, AlertCircle, Calculator, CheckCircle2, AlertTriangle
 } from 'lucide-react';
+import { API_BASE_URL } from '@/lib/config';
 
 const FALLBACK_ELIGIBLE_LOANS = [
   { id: 'L-2026-001', memberId: 'mem-1', member: 'Juan Dela Cruz', type: 'Emergency Loan', approvedAmount: 50000, remainingAmount: 50000, fundSource: 'Emergency Fund', availableFund: 150000, beneficiary: { name: 'Juan Dela Cruz', bank: 'BDO', account: '00123456789' } },
@@ -42,7 +43,7 @@ export default function DisbursementRequestModal({ isOpen, onClose, onSuccess }:
       const fetchEligibleLoans = async () => {
         setIsLoadingLoans(true);
         try {
-          const res = await fetch('http://localhost:3001/disbursements/eligible-loans');
+          const res = await fetch(`${API_BASE_URL}/disbursements/eligible-loans`);
           if (res.ok) {
             const data = await res.json();
             if (Array.isArray(data) && data.length > 0) {
@@ -133,7 +134,7 @@ export default function DisbursementRequestModal({ isOpen, onClose, onSuccess }:
     };
 
     try {
-      const res = await fetch('http://localhost:3001/disbursements/request', {
+      const res = await fetch(`${API_BASE_URL}/disbursements/request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

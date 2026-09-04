@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, CheckCircle2, XCircle, FileText, Loader2, ShieldCheck, Play, Info, Clock, User, Lock
 } from 'lucide-react';
+import { API_BASE_URL } from '@/lib/config';
 
 interface AuditLog {
   id: string;
@@ -58,7 +59,7 @@ export default function DisbursementActionModal({ isOpen, onClose, disbursement,
   const handleApprove = async () => {
     setIsProcessing(true);
     try {
-      const res = await fetch(`http://localhost:3001/disbursements/${disbursement.id}/review`, {
+      const res = await fetch(`${API_BASE_URL}/disbursements/${disbursement.id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -80,7 +81,7 @@ export default function DisbursementActionModal({ isOpen, onClose, disbursement,
   const handleReject = async () => {
     setIsProcessing(true);
     try {
-      const res = await fetch(`http://localhost:3001/disbursements/${disbursement.id}/review`, {
+      const res = await fetch(`${API_BASE_URL}/disbursements/${disbursement.id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -104,7 +105,7 @@ export default function DisbursementActionModal({ isOpen, onClose, disbursement,
     setIsProcessing(true);
     const generatedRef = `PAY-${Math.floor(Math.random() * 900000) + 100000}`;
     try {
-      const res = await fetch(`http://localhost:3001/disbursements/${disbursement.id}/execute`, {
+      const res = await fetch(`${API_BASE_URL}/disbursements/${disbursement.id}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

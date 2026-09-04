@@ -45,6 +45,7 @@ backend/node_modules
 backend/dist
 backend/coverage
 backend/.env
+backend/uploads
 
 # ─── Docker ────────────────────────────────
 .env

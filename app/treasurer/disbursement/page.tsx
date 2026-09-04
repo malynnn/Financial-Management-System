@@ -8,6 +8,7 @@ import {
 import Header from '@/components/Header';
 import DisbursementRequestModal from '@/components/disbursement/DisbursementRequestModal';
 import DisbursementActionModal from '@/components/disbursement/DisbursementActionModal';
+import { API_BASE_URL } from '@/lib/config';
 
 const MOCK_DISBURSEMENTS = Array.from({ length: 15 }).map((_, index) => {
   const statuses = ['Pending Approval', 'Approved', 'Executed', 'Rejected'];
@@ -67,7 +68,7 @@ export default function TreasurerDisbursementPage() {
   const fetchDisbursementsFromApi = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch('http://localhost:3001/disbursements');
+      const res = await fetch(`${API_BASE_URL}/disbursements`);
       if (res.ok) {
         const json = await res.json();
         if (json.data && json.data.length > 0) {

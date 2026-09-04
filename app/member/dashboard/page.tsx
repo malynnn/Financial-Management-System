@@ -8,6 +8,7 @@ import {
   AlertCircle, Clock, FileText, ExternalLink, Calendar, CreditCard, ShieldCheck, ChevronRight, Info
 } from 'lucide-react';
 import Header from '@/components/Header';
+import { API_BASE_URL } from '@/lib/config';
 
 interface Obligation {
   id: string;
@@ -178,9 +179,8 @@ export default function MemberDashboardPage() {
 
   const fetchData = async () => {
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
       // 1. fetch member obligations
-      const obRes = await fetch(`${API_URL}/obligations?memberId=${memberId}`);
+      const obRes = await fetch(`${API_BASE_URL}/obligations?memberId=${memberId}`);
       if (obRes.ok) {
         const obData = await obRes.json();
         if (Array.isArray(obData) && obData.length > 0) {
@@ -193,7 +193,7 @@ export default function MemberDashboardPage() {
       }
 
       // 2. fetch member collections
-      const colRes = await fetch(`${API_URL}/collections?memberId=${memberId}`);
+      const colRes = await fetch(`${API_BASE_URL}/collections?memberId=${memberId}`);
       if (colRes.ok) {
         const colData = await colRes.json();
         if (Array.isArray(colData) && colData.length > 0) {
@@ -225,7 +225,7 @@ export default function MemberDashboardPage() {
     const selectedMeta = LOAN_TYPES.find(l => l.type === loanType) || LOAN_TYPES[0];
 
     try {
-      const res = await fetch('http://localhost:3001/obligations', {
+      const res = await fetch(`${API_BASE_URL}/obligations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -700,7 +700,7 @@ export default function MemberDashboardPage() {
                   </div>
                   {selectedCollection.proofOfPaymentPath && (
                     <a
-                      href={`http://localhost:3001/${selectedCollection.proofOfPaymentPath}`}
+                      href={`${API_BASE_URL}/${selectedCollection.proofOfPaymentPath}`}
                       target="_blank"
                       rel="noreferrer"
                       className="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1"

@@ -5,6 +5,7 @@ import {
   X, CheckCircle2, XCircle, FileText, Loader2, 
   ArrowRight, ShieldCheck, Info, Clock, User, Calculator, ExternalLink
 } from 'lucide-react';
+import { API_BASE_URL } from '@/lib/config';
 
 interface AuditLog {
   id: string;
@@ -73,7 +74,7 @@ export default function TreasurerReviewModal({ isOpen, onClose, collection, onPr
       setIsProcessing(false);
       setErrorMessage(null);
 
-      fetch(`http://localhost:3001/obligations/active/${collection.memberId}`)
+      fetch(`${API_BASE_URL}/obligations/active/${collection.memberId}`)
         .then(res => res.ok ? res.json() : [])
         .then(data => {
           if (Array.isArray(data) && data.length > 0) {
@@ -116,7 +117,7 @@ export default function TreasurerReviewModal({ isOpen, onClose, collection, onPr
     setErrorMessage(null);
 
     try {
-      const res = await fetch(`http://localhost:3001/collections/${collection.id}/reject`, {
+      const res = await fetch(`${API_BASE_URL}/collections/${collection.id}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -147,7 +148,7 @@ export default function TreasurerReviewModal({ isOpen, onClose, collection, onPr
     setErrorMessage(null);
 
     try {
-      const res = await fetch(`http://localhost:3001/collections/${collection.id}/apply`, {
+      const res = await fetch(`${API_BASE_URL}/collections/${collection.id}/apply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

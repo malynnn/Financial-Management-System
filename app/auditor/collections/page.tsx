@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import Header from '@/components/Header';
 import AuditHistoryModal from '@/components/collections/AuditHistoryModal';
+import { API_BASE_URL } from '@/lib/config';
 
 const MOCK_AUDIT_COLLECTIONS = Array.from({ length: 24 }).map((_, index) => {
   const isPosted = index % 3 === 0;
@@ -85,7 +86,7 @@ export default function AuditorCollectionsPage() {
   const fetchCollectionsFromApi = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch('http://localhost:3001/collections');
+      const res = await fetch(`${API_BASE_URL}/collections`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
@@ -110,7 +111,7 @@ export default function AuditorCollectionsPage() {
               date: new Date(c.paymentDate).toISOString().split('T')[0],
               method,
               paymentRef: c.paymentReference,
-              proofUrl: c.proofOfPaymentPath ? `http://localhost:3001/${c.proofOfPaymentPath}` : '#',
+              proofUrl: c.proofOfPaymentPath ? `${API_BASE_URL}/${c.proofOfPaymentPath}` : '#',
               status,
               applicationData: c.application ? {
                 obligationType: c.application.obligation?.obligationType || 'General Obligation',

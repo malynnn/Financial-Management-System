@@ -172,17 +172,6 @@ export default function AdminDisbursementPage() {
       </div>
 
       <div className="p-4 md:p-6 max-w-[1400px] w-full mx-auto animate-fade-in flex-1 relative z-10 space-y-6 mt-2">
-        
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-[#04152d] tracking-tight flex items-center gap-3">
-              Disbursement Approvals
-            </h1>
-            <p className="text-[13px] font-medium text-[#04152d]/60 mt-1">
-              Review and authorize pending financial disbursements requested by the Treasurer.
-            </p>
-          </div>
-        </div>
 
         <div className={`${ultraGlassCard} !p-4 flex flex-col xl:flex-row gap-4 items-center justify-between`}>
           <div className="flex flex-col sm:flex-row w-full xl:w-auto gap-4 flex-1">

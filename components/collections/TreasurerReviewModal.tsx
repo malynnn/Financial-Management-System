@@ -53,6 +53,13 @@ interface Props {
   onProcessSuccess: (id: string, newStatus: string) => void;
 }
 
+const REJECTION_SUGGESTIONS = [
+  "The attached proof of payment is blurry and unreadable.",
+  "The payment amount does not match the required obligation.",
+  "Invalid or missing proof of payment document.",
+  "Payment reference number is incorrect or unverified."
+];
+
 export default function TreasurerReviewModal({ isOpen, onClose, collection, onProcessSuccess }: Props) {
   const [step, setStep] = useState<'review' | 'rejecting' | 'apply' | 'confirm'>('review');
   const [activeTab, setActiveTab] = useState<'details' | 'timeline'>('details');
@@ -317,10 +324,28 @@ export default function TreasurerReviewModal({ isOpen, onClose, collection, onPr
 
               {/* rejection input */}
               {!isCompleted && step === 'rejecting' && (
-                <div className="bg-red-50/70 p-4 rounded-[16px] border border-red-200 animate-fade-in">
-                  <label className="block text-[11px] font-black text-red-800 uppercase tracking-widest mb-2">
-                    Reason for Rejection <span className="text-red-500">*</span>
-                  </label>
+                <div className="bg-red-50/70 p-4 rounded-[16px] border border-red-200 animate-fade-in space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[11px] font-black text-red-800 uppercase tracking-widest">
+                      Reason for Rejection <span className="text-red-500">*</span>
+                    </label>
+                  </div>
+                  
+                  {/* Suggested Replies */}
+                  <div className="flex flex-wrap gap-2">
+                    {REJECTION_SUGGESTIONS.map((suggestion, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        disabled={isProcessing}
+                        onClick={() => setRejectReasonInput(suggestion)}
+                        className="text-left px-3 py-1.5 bg-white/60 hover:bg-white border border-red-200 rounded-[8px] text-[11px] font-bold text-red-700 transition-colors shadow-sm active:scale-95 disabled:opacity-50"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+
                   <textarea
                     required
                     rows={3}
@@ -328,7 +353,7 @@ export default function TreasurerReviewModal({ isOpen, onClose, collection, onPr
                     value={rejectReasonInput}
                     onChange={(e) => setRejectReasonInput(e.target.value)}
                     className={glassInput}
-                    placeholder="Provide specific details why this payment is rejected..."
+                    placeholder="Provide specific details why this payment is rejected or select a suggestion above..."
                   />
                 </div>
               )}

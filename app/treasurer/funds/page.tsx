@@ -2,17 +2,17 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
-  Search, ChevronDown, ChevronLeft, ChevronRight, Activity, Calendar, AlertCircle, FileText, PieChart, CheckCircle2, SearchX
+  Search, ChevronDown, ChevronLeft, ChevronRight, Activity, Calendar, AlertCircle, FileText, PieChart, CheckCircle2, SearchX, BrainCircuit
 } from 'lucide-react';
 import Header from '@/components/Header';
 import FundFinancialSummaryModal from '@/components/funds/FundFinancialSummaryModal';
 
 const MOCK_ACTIVE_FUNDS = [
-  { id: 'FND-001', name: 'Union Fund', code: 'UNF', balance: 500000, pendingDisbursements: 25000, currentUtilization: 45 },
-  { id: 'FND-002', name: 'General Fund', code: 'GEN', balance: 250000, pendingDisbursements: 12000, currentUtilization: 65 },
-  { id: 'FND-003', name: 'Death Assistance Fund', code: 'DAF', balance: 15000, pendingDisbursements: 20000, currentUtilization: 95 },
-  { id: 'FND-005', name: 'Loan Fund', code: 'LNF', balance: 850000, pendingDisbursements: 150000, currentUtilization: 80 },
-  { id: 'FND-006', name: 'Calamity Fund', code: 'CAL', balance: 300000, pendingDisbursements: 0, currentUtilization: 10 },
+  { id: 'FND-001', name: 'Union Fund', code: 'UNF', balance: 500000, pendingDisbursements: 25000, currentUtilization: 45, isForecastingReady: true },
+  { id: 'FND-002', name: 'General Fund', code: 'GEN', balance: 250000, pendingDisbursements: 12000, currentUtilization: 65, isForecastingReady: true },
+  { id: 'FND-003', name: 'Death Assistance Fund', code: 'DAF', balance: 15000, pendingDisbursements: 20000, currentUtilization: 95, isForecastingReady: false },
+  { id: 'FND-005', name: 'Loan Fund', code: 'LNF', balance: 850000, pendingDisbursements: 150000, currentUtilization: 80, isForecastingReady: true },
+  { id: 'FND-006', name: 'Calamity Fund', code: 'CAL', balance: 300000, pendingDisbursements: 0, currentUtilization: 10, isForecastingReady: false },
 ];
 
 const MOCK_TRANSACTIONS = Array.from({ length: 45 }).map((_, i) => {
@@ -172,14 +172,29 @@ export default function TreasurerFundMonitoringPage() {
 
             return (
               <div key={fund.id} className={`${ultraGlassCard} flex flex-col group hover:-translate-y-1 transition-transform duration-300`}>
+                
+                {/* UPGRADED HEADER WITH AI FORECAST READY BADGE */}
                 <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-[16px] font-semibold text-[#04152d] tracking-tight">{fund.name}</h3>
-                    <span className="text-[10px] font-semibold text-[#04152d]/50 uppercase tracking-widest border border-[#04152d]/10 px-2 py-0.5 rounded bg-white/50">{fund.code}</span>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-[16px] font-semibold text-[#04152d] tracking-tight">{fund.name}</h3>
+                      {fund.isForecastingReady ? (
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[9px] font-bold uppercase tracking-widest shadow-sm" title="Validated historical data available for AI Forecasting">
+                          <BrainCircuit size={10} /> Forecast Ready
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-200 text-[9px] font-bold uppercase tracking-widest shadow-sm" title="Insufficient validated data for AI Forecasting">
+                          Needs Data
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] font-semibold text-[#04152d]/50 uppercase tracking-widest border border-[#04152d]/10 px-2 py-0.5 rounded bg-white/50 inline-block">
+                      {fund.code}
+                    </span>
                   </div>
                   <button 
                     onClick={() => { setSelectedFund(fund); setIsSummaryModalOpen(true); }}
-                    className="p-2 bg-white/60 hover:bg-white border border-white shadow-sm rounded-full text-blue-600 transition-colors"
+                    className="p-2 bg-white/60 hover:bg-white border border-white shadow-sm rounded-full text-blue-600 transition-colors shrink-0"
                     title="View Financial Summary"
                   >
                     <PieChart size={16} />

@@ -409,6 +409,7 @@ function CollectionFormContent() {
                       <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#04152d]/50 pointer-events-none" />
                     </div>
                   </div>
+                  {/* Find the Payment Reference Input inside the form grid */}
                   <div>
                     <label className={inputLabel}>Payment Reference <span className="text-red-500 text-[14px] leading-none">*</span></label>
                     <div className="relative">
@@ -418,7 +419,8 @@ function CollectionFormContent() {
                         required
                         disabled={isSubmitting}
                         value={reference}
-                        onChange={(e) => setReference(e.target.value)}
+                        // UPDATE: Force the target value to uppercase immediately upon typing
+                        onChange={(e) => setReference(e.target.value.toUpperCase())}
                         className={glassInput}
                         placeholder="Example: GCASH-998811 or Bank Ref No."
                       />

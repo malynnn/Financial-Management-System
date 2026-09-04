@@ -95,6 +95,7 @@ const CustomCashflowTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function ForecastingDashboardPage() {
+  const [funds, setFunds] = useState<any[]>(MOCK_ACTIVE_FUNDS);
   const [fundFilter, setFundFilter] = useState('All');
   const [startDate, setStartDate] = useState('2026-04-01');
   const [endDate, setEndDate] = useState('2026-12-31');
@@ -102,11 +103,25 @@ export default function ForecastingDashboardPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [liveForecastData, setLiveForecastData] = useState<any>(null);
 
-  // FAI-012: Fetch forecast results for interactive dashboard (prioritizing valid stored forecasts)
+  // FAI-011: Dynamically pull active funds from the Fund Master
+  const fetchFunds = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/funds?status=Active`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.funds)) {
+          setFunds(data.funds);
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch active funds from backend, using defaults.', err);
+    }
+  };
+
+  // FAI-012: Fetch forecast results for interactive dashboard
   const fetchForecast = async (fundCode: string = 'ALL') => {
     setIsLoading(true);
     try {
-      // First attempt to get the latest valid stored forecasts (FAI-012)
       const storedRes = await fetch(`${API_BASE_URL}/forecasting/stored/latest?fundCode=${fundCode === 'All' ? 'ALL' : fundCode}`);
       if (storedRes.ok) {
         const storedData = await storedRes.json();
@@ -117,7 +132,6 @@ export default function ForecastingDashboardPage() {
         }
       }
 
-      // If no stored forecast yet, generate on-demand
       const res = await fetch(`${API_BASE_URL}/forecasting/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -138,6 +152,10 @@ export default function ForecastingDashboardPage() {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchFunds();
+  }, []);
 
   useEffect(() => {
     fetchForecast(fundFilter);
@@ -171,17 +189,16 @@ export default function ForecastingDashboardPage() {
       }
     }
 
-    // Fallback if live data not loaded
     if (fundFilter === 'All') {
       return {
-        historicalBalance: MOCK_ACTIVE_FUNDS.reduce((acc, curr) => acc + curr.historicalBalance, 0),
-        projectedBalance: MOCK_ACTIVE_FUNDS.reduce((acc, curr) => acc + curr.projectedBalance, 0),
+        historicalBalance: funds.reduce((acc, curr) => acc + (curr.balance || curr.historicalBalance || 0), 0),
+        projectedBalance: funds.reduce((acc, curr) => acc + (curr.projectedBalance || 0), 0),
         name: 'All Active Funds',
         code: 'ALL',
       };
     }
-    return MOCK_ACTIVE_FUNDS.find(f => f.code === fundFilter) || MOCK_ACTIVE_FUNDS[0];
-  }, [fundFilter, liveForecastData]);
+    return funds.find(f => f.code === fundFilter) || funds[0];
+  }, [fundFilter, liveForecastData, funds]);
 
   // Trendline data from live forecast or computed
   const trendData = useMemo(() => {
@@ -224,7 +241,6 @@ export default function ForecastingDashboardPage() {
       }
     }
 
-    // Default realistic curve based on active baseline
     const base = activeFundData.historicalBalance || 1870000;
     return [
       { date: '2026-05', historical: Math.round(base * 0.85), forecast: null },
@@ -298,13 +314,13 @@ export default function ForecastingDashboardPage() {
         value: fc.projected,
       }));
     }
-    return MOCK_ACTIVE_FUNDS.map(f => ({ 
+    return funds.map(f => ({ 
       name: f.code, 
       fullName: f.name,
       code: f.code,
-      value: f.projectedBalance 
+      value: f.projectedBalance || 0
     }));
-  }, [liveForecastData]);
+  }, [liveForecastData, funds]);
 
   const variance = activeFundData.projectedBalance - activeFundData.historicalBalance;
   const variancePercent = activeFundData.historicalBalance > 0 
@@ -329,7 +345,7 @@ export default function ForecastingDashboardPage() {
 
       <div className="p-4 md:p-6 max-w-[1400px] w-full mx-auto animate-fade-in flex-1 relative z-10 space-y-6 mt-2">
         
-        {/* Top Control Bar with Fund Filter and Generate CTA */}
+        {/* Top Control Bar with Dynamic Fund Filter */}
         <div className={`${ultraGlassCard} !p-4 flex flex-col xl:flex-row items-center justify-between gap-4 z-20`}>
           <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto items-center">
             <div className="relative w-full sm:w-72">
@@ -339,11 +355,9 @@ export default function ForecastingDashboardPage() {
                 className={`${glassInput} w-full appearance-none cursor-pointer`}
               >
                 <option value="All">All Active Funds</option>
-                <option value="UNF">Union Fund (UNF)</option>
-                <option value="GEN">General Fund (GEN)</option>
-                <option value="DAF">Death Assistance Fund (DAF)</option>
-                <option value="FAF">Foreign Assistance Fund (FAF)</option>
-                <option value="LNF">Loan Fund (LNF)</option>
+                {funds.map(f => (
+                  <option key={f.code} value={f.code}>{f.name} ({f.code})</option>
+                ))}
               </select>
               <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#04152d]/50 pointer-events-none" />
             </div>
@@ -367,7 +381,6 @@ export default function ForecastingDashboardPage() {
               />
             </div>
 
-            {/* FAI-011 / FAI-012 Stored Status Badge */}
             {liveForecastData?.batchId && (
               <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-700 text-[11px] font-semibold">
                 <Database size={12} className="text-blue-600" />
@@ -394,7 +407,7 @@ export default function ForecastingDashboardPage() {
           </div>
         </div>
 
-        {/* Data Sufficiency Warning Notice (FAI-003 - FAI-008) */}
+        {/* Data Sufficiency Warning Notice */}
         {((fundFilter !== 'All' && liveForecastData?.errors?.[fundFilter]) || 
           (fundFilter === 'All' && liveForecastData?.errors && Object.keys(liveForecastData.errors).length > 0 && !liveForecastData?.forecasts?.[Object.keys(liveForecastData.forecasts)[0]])) && (
           <div className="bg-amber-500/10 border border-amber-500/30 rounded-[16px] p-4 flex items-start gap-3 shadow-sm">
@@ -410,35 +423,47 @@ export default function ForecastingDashboardPage() {
           </div>
         )}
 
-        {/* 3 Metric Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className={`${ultraGlassCard} !p-5 flex items-center gap-4`}>
-            <div className="w-12 h-12 bg-white/90 border border-white rounded-[16px] shadow-sm flex items-center justify-center shrink-0">
-              <Wallet size={20} className="text-[#04152d]/60" />
-            </div>
-            <div>
-              <span className="block text-[10px] font-semibold text-[#04152d]/50 uppercase tracking-widest">Historical Baseline</span>
-              <span className="block text-[24px] font-semibold text-[#04152d] tracking-tighter mt-0.5">{formatCurrency(activeFundData.historicalBalance)}</span>
-            </div>
-          </div>
-          <div className={`${ultraGlassCard} !p-5 flex items-center gap-4`}>
-            <div className="w-12 h-12 bg-white/90 border border-white rounded-[16px] shadow-sm flex items-center justify-center shrink-0">
-              <BrainCircuit size={20} className="text-emerald-600" />
-            </div>
-            <div>
-              <span className="block text-[10px] font-semibold text-[#04152d]/50 uppercase tracking-widest">AI Projected Target</span>
-              <span className="block text-[24px] font-semibold text-[#04152d] tracking-tighter mt-0.5">{formatCurrency(activeFundData.projectedBalance)}</span>
+        {/* Forecast Summary Header & Metric Cards */}
+        <div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 mt-2">
+            <h3 className="text-[16px] font-bold text-[#04152d] uppercase tracking-widest flex items-center gap-2">
+              <BarChart2 size={18} className="text-blue-600" /> Forecast Summary
+            </h3>
+            <div className="flex items-center gap-2 text-[12px] font-semibold text-[#04152d]/70 bg-white/50 px-3 py-1.5 rounded-full border border-white/80 shadow-sm w-fit">
+              <Calendar size={14} className="text-blue-600" />
+              Selected Period: <span className="text-[#04152d]">{startDate}</span> to <span className="text-[#04152d]">{endDate}</span>
             </div>
           </div>
-          <div className={`${ultraGlassCard} !p-5 flex items-center gap-4`}>
-            <div className="w-12 h-12 bg-white/90 border border-white rounded-[16px] shadow-sm flex items-center justify-center shrink-0">
-              {variance >= 0 ? <TrendingUp size={20} className="text-emerald-600" /> : <TrendingDown size={20} className="text-red-600" />}
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className={`${ultraGlassCard} !p-5 flex items-center gap-4`}>
+              <div className="w-12 h-12 bg-white/90 border border-white rounded-[16px] shadow-sm flex items-center justify-center shrink-0">
+                <Wallet size={20} className="text-[#04152d]/60" />
+              </div>
+              <div>
+                <span className="block text-[10px] font-semibold text-[#04152d]/50 uppercase tracking-widest">Historical Baseline</span>
+                <span className="block text-[24px] font-semibold text-[#04152d] tracking-tighter mt-0.5">{formatCurrency(activeFundData.historicalBalance)}</span>
+              </div>
             </div>
-            <div>
-              <span className="block text-[10px] font-semibold text-[#04152d]/50 uppercase tracking-widest">Net Forecast Variance</span>
-              <span className={`block text-[24px] font-semibold tracking-tighter mt-0.5 ${variance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                {variance >= 0 ? '+' : ''}{formatCurrency(variance)} ({variancePercent.toFixed(1)}%)
-              </span>
+            <div className={`${ultraGlassCard} !p-5 flex items-center gap-4`}>
+              <div className="w-12 h-12 bg-white/90 border border-white rounded-[16px] shadow-sm flex items-center justify-center shrink-0">
+                <BrainCircuit size={20} className="text-emerald-600" />
+              </div>
+              <div>
+                <span className="block text-[10px] font-semibold text-[#04152d]/50 uppercase tracking-widest">AI Projected Target (by {endDate})</span>
+                <span className="block text-[24px] font-semibold text-[#04152d] tracking-tighter mt-0.5">{formatCurrency(activeFundData.projectedBalance)}</span>
+              </div>
+            </div>
+            <div className={`${ultraGlassCard} !p-5 flex items-center gap-4`}>
+              <div className="w-12 h-12 bg-white/90 border border-white rounded-[16px] shadow-sm flex items-center justify-center shrink-0">
+                {variance >= 0 ? <TrendingUp size={20} className="text-emerald-600" /> : <TrendingDown size={20} className="text-red-600" />}
+              </div>
+              <div>
+                <span className="block text-[10px] font-semibold text-[#04152d]/50 uppercase tracking-widest">Net Forecast Variance</span>
+                <span className={`block text-[24px] font-semibold tracking-tighter mt-0.5 ${variance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {variance >= 0 ? '+' : ''}{formatCurrency(variance)} ({variancePercent.toFixed(1)}%)
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -451,7 +476,7 @@ export default function ForecastingDashboardPage() {
                 <Activity size={16} className="text-blue-500"/> Fund Projection Trendline
               </h3>
               <p className="text-[11px] font-medium text-[#04152d]/50 mt-1">
-                Analyzing: {activeFundData.name} | Period Horizon: Selected Forecast Horizon
+                Analyzing: {activeFundData.name} | Target Horizon: {endDate}
               </p>
             </div>
           </div>

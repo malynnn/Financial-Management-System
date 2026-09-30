@@ -42,10 +42,10 @@ export class CreateCollectionDto {
   })
   paymentMethod: PaymentMethod;
 
-  @ApiProperty({ description: 'Payment reference or transaction number', example: 'GCX-12345' })
+  @ApiPropertyOptional({ description: 'Payment reference or transaction number (recorded when applicable)', example: 'GCX-12345' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty({ message: 'Payment reference is required' })
-  paymentReference: string;
+  paymentReference?: string;
 
   @ApiPropertyOptional({ description: 'Optional notes about this collection' })
   @IsOptional()

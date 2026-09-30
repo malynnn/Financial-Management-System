@@ -113,6 +113,9 @@ model Collection {
   // Optional notes
   description             String?
 
+  // CPS-006: Collection category classification
+  collectionCategory      String?
+
   // Status (CPS-003, CPS-004, CPS-011)
   status                  CollectionStatus @default(PENDING)
 

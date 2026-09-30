@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -27,10 +28,14 @@ import { extname, join } from 'path';
 import { AuditorReadOnlyGuard } from '../common/guards/auditor-read-only.guard';
 import { CollectionsService } from './collections.service';
 import { ApplyPaymentDto } from './dto/apply-payment.dto';
+import { ClassifyCollectionDto } from './dto/classify-collection.dto';
 import { CreateCollectionDto } from './dto/create-collection.dto';
 import { RejectCollectionDto } from './dto/reject-collection.dto';
 
-// CPS-002: multer storage config
+// CPS-002: multer storage config with file validation
+const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf'];
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB — configurable limit
+
 const proofStorage = diskStorage({
   destination: join(process.cwd(), 'uploads', 'proofs'),
   filename: (_req, file, cb) => {
@@ -38,6 +43,24 @@ const proofStorage = diskStorage({
     cb(null, `proof-${uniqueSuffix}${extname(file.originalname)}`);
   },
 });
+
+const proofFileFilter = (
+  _req: any,
+  file: Express.Multer.File,
+  cb: (error: Error | null, acceptFile: boolean) => void,
+) => {
+  const ext = extname(file.originalname).toLowerCase();
+  if (ALLOWED_EXTENSIONS.includes(ext)) {
+    cb(null, true);
+  } else {
+    cb(
+      new BadRequestException(
+        `File type not allowed. Accepted formats: ${ALLOWED_EXTENSIONS.join(', ')}`,
+      ),
+      false,
+    );
+  }
+};
 
 @ApiTags('Collections')
 @Controller('collections')
@@ -65,7 +88,7 @@ export class CollectionsController {
    */
   @Post(':id/proof')
   @HttpCode(HttpStatus.OK)
-  @UseInterceptors(FileInterceptor('file', { storage: proofStorage }))
+  @UseInterceptors(FileInterceptor('file', { storage: proofStorage, fileFilter: proofFileFilter, limits: { fileSize: MAX_FILE_SIZE_BYTES } }))
   @ApiOperation({ summary: 'CPS-002: Upload proof of payment for a collection' })
   @ApiConsumes('multipart/form-data')
   @ApiParam({ name: 'id', description: 'Collection ID' })
@@ -113,17 +136,42 @@ export class CollectionsController {
   }
 
   /**
-   * CPS-005 — Check if payment reference is duplicate
+   * CPS-013 — Monitor collection totals and categories
+   */
+  @Get('monitoring/totals')
+  @ApiOperation({ summary: 'CPS-013: Monitor collection totals by date, category, member, and source' })
+  @ApiQuery({ name: 'dateFrom', required: false, description: 'Start date filter' })
+  @ApiQuery({ name: 'dateTo', required: false, description: 'End date filter' })
+  @ApiQuery({ name: 'category', required: false, description: 'Collection category filter' })
+  @ApiQuery({ name: 'memberId', required: false, description: 'Member ID filter' })
+  @ApiQuery({ name: 'source', required: false, description: 'Payment source/method filter' })
+  @ApiResponse({ status: 200, description: 'Collection totals and analytics data' })
+  getCollectionTotals(
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('category') category?: string,
+    @Query('memberId') memberId?: string,
+    @Query('source') source?: string,
+  ) {
+    return this.collectionsService.getCollectionTotals({ dateFrom, dateTo, category, memberId, source });
+  }
+
+  /**
+   * CPS-005 — Check if payment reference is duplicate (enhanced with source/member matching)
    */
   @Get('check-duplicate/:ref')
-  @ApiOperation({ summary: 'CPS-005: Check if payment reference already exists' })
+  @ApiOperation({ summary: 'CPS-005: Check if payment reference already exists (with optional member/transaction matching)' })
   @ApiParam({ name: 'ref', description: 'Payment reference number to verify' })
   @ApiQuery({ name: 'excludeId', required: false, description: 'Collection ID to exclude from check' })
+  @ApiQuery({ name: 'memberId', required: false, description: 'Member ID for enhanced duplicate matching' })
+  @ApiQuery({ name: 'paymentMethod', required: false, description: 'Payment method for enhanced duplicate matching' })
   checkDuplicate(
     @Param('ref') paymentReference: string,
     @Query('excludeId') excludeId?: string,
+    @Query('memberId') memberId?: string,
+    @Query('paymentMethod') paymentMethod?: string,
   ) {
-    return this.collectionsService.checkDuplicate(paymentReference, excludeId);
+    return this.collectionsService.checkDuplicate(paymentReference, excludeId, memberId, paymentMethod);
   }
 
   /**
@@ -139,6 +187,40 @@ export class CollectionsController {
   @ApiResponse({ status: 409, description: 'Duplicate payment detected' })
   validateCollection(@Param('id') id: string) {
     return this.collectionsService.validateCollection(id);
+  }
+
+  /**
+   * CPS-006 — Classify collection category
+   */
+  @Post(':id/classify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'CPS-006: Classify collection with a configured category before finalization' })
+  @ApiParam({ name: 'id', description: 'Collection ID' })
+  @ApiResponse({ status: 200, description: 'Collection classified successfully' })
+  @ApiResponse({ status: 400, description: 'Cannot classify posted/rejected collection' })
+  @ApiResponse({ status: 404, description: 'Collection not found' })
+  classifyCollection(
+    @Param('id') id: string,
+    @Body() dto: ClassifyCollectionDto,
+  ) {
+    return this.collectionsService.classifyCollection(id, dto);
+  }
+
+  /**
+   * CPS-007 — Identify related financial obligation (receivable)
+   */
+  @Get(':id/receivable/:obligationId')
+  @ApiOperation({ summary: 'CPS-007: Identify and validate the related financial obligation for a collection' })
+  @ApiParam({ name: 'id', description: 'Collection ID' })
+  @ApiParam({ name: 'obligationId', description: 'Financial Obligation ID to look up' })
+  @ApiResponse({ status: 200, description: 'Receivable identified and eligible for payment application' })
+  @ApiResponse({ status: 400, description: 'Obligation belongs to different member or has zero balance' })
+  @ApiResponse({ status: 404, description: 'Collection or obligation not found' })
+  identifyReceivable(
+    @Param('id') id: string,
+    @Param('obligationId') obligationId: string,
+  ) {
+    return this.collectionsService.identifyReceivable(id, obligationId);
   }
 
   /**

@@ -9,12 +9,13 @@ import { CollectionStatus } from '@prisma/client';
 import { FundsService } from '../funds/funds.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ApplyPaymentDto } from './dto/apply-payment.dto';
+import { ClassifyCollectionDto } from './dto/classify-collection.dto';
 import { CreateCollectionDto } from './dto/create-collection.dto';
 import { RejectCollectionDto } from './dto/reject-collection.dto';
 
-// CPS-002: allowed file types and max size
+// CPS-002: allowed file types and configurable max size
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB — configurable limit (can be moved to env/config)
 
 @Injectable()
 export class CollectionsService {
@@ -36,18 +37,23 @@ export class CollectionsService {
       throw new NotFoundException(`Member with ID "${dto.memberId}" not found`);
     }
 
-    // 2. CPS-005: Duplicate Check
-    const duplicate = await this.prisma.collection.findFirst({
-      where: {
-        paymentReference: dto.paymentReference,
-        status: { not: CollectionStatus.REJECTED },
-      },
-    });
+    // 2. CPS-005: Enhanced Duplicate Check (only when paymentReference is provided)
+    // Matches payment reference + source/member transaction details
+    if (dto.paymentReference) {
+      const duplicate = await this.prisma.collection.findFirst({
+        where: {
+          paymentReference: dto.paymentReference,
+          memberId: dto.memberId,
+          paymentMethod: dto.paymentMethod,
+          status: { not: CollectionStatus.REJECTED },
+        },
+      });
 
-    if (duplicate) {
-      throw new ConflictException(
-        `Duplicate payment reference detected. A collection with reference "${dto.paymentReference}" already exists.`,
-      );
+      if (duplicate) {
+        throw new ConflictException(
+          `Duplicate payment reference detected. A collection with reference "${dto.paymentReference}" already exists for this member.`,
+        );
+      }
     }
 
     // 3. Create collection record with detailed audit trail (CPS-012)
@@ -57,7 +63,7 @@ export class CollectionsService {
         paymentAmount: dto.paymentAmount,
         paymentDate: new Date(dto.paymentDate),
         paymentMethod: dto.paymentMethod,
-        paymentReference: dto.paymentReference,
+        paymentReference: dto.paymentReference || '',
         description: dto.description,
         status: CollectionStatus.PENDING,
         auditTrail: {
@@ -68,7 +74,7 @@ export class CollectionsService {
             newStatus: CollectionStatus.PENDING,
             actor: member.name || 'Member',
             role: 'Member',
-            details: `Member submitted payment details for ₱${Number(dto.paymentAmount).toLocaleString()} via ${dto.paymentMethod} (Ref: ${dto.paymentReference}).`,
+            details: `Member submitted payment details for ₱${Number(dto.paymentAmount).toLocaleString()} via ${dto.paymentMethod}${dto.paymentReference ? ` (Ref: ${dto.paymentReference})` : ''}.`,
           },
         },
       },
@@ -175,10 +181,18 @@ export class CollectionsService {
       throw new NotFoundException(`Collection with ID "${id}" not found`);
     }
 
+    // 0. CPS-004: Status guard — only PENDING or FOR_VERIFICATION can be validated
+    const allowedStatuses: CollectionStatus[] = [CollectionStatus.PENDING, CollectionStatus.FOR_VERIFICATION];
+    if (!allowedStatuses.includes(collection.status)) {
+      throw new BadRequestException(
+        `Cannot validate collection with status "${collection.status}". Only Pending or For Verification collections can be validated.`,
+      );
+    }
+
     // 1. CPS-004: Validate required fields completeness
     const missingFields: string[] = [];
     if (!collection.memberId) missingFields.push('Member ID');
-    if (!collection.paymentReference) missingFields.push('Payment Reference');
+    if (!collection.paymentReference || !collection.paymentReference.trim()) missingFields.push('Payment Reference');
     if (!collection.paymentAmount || Number(collection.paymentAmount) <= 0) missingFields.push('Valid Payment Amount');
     if (!collection.paymentDate) missingFields.push('Payment Date');
     if (!collection.paymentMethod) missingFields.push('Payment Method');
@@ -190,11 +204,13 @@ export class CollectionsService {
       );
     }
 
-    // 2. CPS-005: Duplicate Check
+    // 2. CPS-005: Enhanced Duplicate Check — matches payment reference + source/member transaction details
     const duplicate = await this.prisma.collection.findFirst({
       where: {
         id: { not: id },
         paymentReference: collection.paymentReference,
+        memberId: collection.memberId,
+        paymentMethod: collection.paymentMethod,
         status: { not: CollectionStatus.REJECTED },
       },
     });
@@ -262,13 +278,16 @@ export class CollectionsService {
   }
 
   /**
-   * CPS-005: Explicit Duplicate check helper endpoint
+   * CPS-005: Enhanced Duplicate check helper endpoint
+   * Matches payment reference + optional source/member transaction details
    */
-  async checkDuplicate(paymentReference: string, excludeId?: string) {
+  async checkDuplicate(paymentReference: string, excludeId?: string, memberId?: string, paymentMethod?: string) {
     const existing = await this.prisma.collection.findFirst({
       where: {
         paymentReference,
         id: excludeId ? { not: excludeId } : undefined,
+        memberId: memberId || undefined,
+        paymentMethod: paymentMethod ? (paymentMethod as any) : undefined,
         status: { not: CollectionStatus.REJECTED },
       },
       include: {
@@ -279,6 +298,101 @@ export class CollectionsService {
     return {
       isDuplicate: !!existing,
       existingCollection: existing || null,
+    };
+  }
+  /**
+   * CPS-006: Classify a collection with a configured category.
+   * Required before the transaction can be finalized (posted).
+   */
+  async classifyCollection(id: string, dto: ClassifyCollectionDto) {
+    const collection = await this.prisma.collection.findUnique({
+      where: { id },
+    });
+
+    if (!collection) {
+      throw new NotFoundException(`Collection with ID "${id}" not found`);
+    }
+
+    if (collection.status === CollectionStatus.POSTED) {
+      throw new BadRequestException('Cannot reclassify a collection that has already been posted.');
+    }
+
+    if (collection.status === CollectionStatus.REJECTED) {
+      throw new BadRequestException('Cannot classify a rejected collection.');
+    }
+
+    const updated = await this.prisma.collection.update({
+      where: { id },
+      data: {
+        collectionCategory: dto.collectionCategory,
+        auditTrail: {
+          create: {
+            userId: collection.memberId,
+            collectionRefNo: collection.collectionRefNo,
+            action: 'Collection Classified',
+            previousStatus: collection.status,
+            newStatus: collection.status,
+            actor: 'Treasurer',
+            role: 'Treasurer',
+            details: `Collection classified as "${dto.collectionCategory}".`,
+          },
+        },
+      },
+      include: {
+        member: { select: { id: true, name: true, email: true } },
+        auditTrail: { orderBy: { timestamp: 'asc' } },
+      },
+    });
+
+    return updated;
+  }
+
+  /**
+   * CPS-007: Identify and validate the related financial obligation.
+   * Returns the receivable only when it exists, belongs to the same member,
+   * and has an outstanding balance greater than zero.
+   */
+  async identifyReceivable(collectionId: string, obligationId: string) {
+    const collection = await this.prisma.collection.findUnique({
+      where: { id: collectionId },
+    });
+
+    if (!collection) {
+      throw new NotFoundException(`Collection with ID "${collectionId}" not found`);
+    }
+
+    const obligation = await this.prisma.financialObligation.findUnique({
+      where: { id: obligationId },
+      include: { member: { select: { id: true, name: true, email: true } } },
+    });
+
+    if (!obligation) {
+      throw new NotFoundException(`Financial obligation with ID "${obligationId}" not found`);
+    }
+
+    // CPS-007: Verify obligation belongs to the same member
+    if (obligation.memberId !== collection.memberId) {
+      throw new BadRequestException(
+        `Obligation "${obligation.obligationType}" belongs to a different member. Cannot apply to this collection.`,
+      );
+    }
+
+    // CPS-007: Verify outstanding balance > 0
+    if (Number(obligation.outstandingBalance) <= 0) {
+      throw new BadRequestException(
+        `Obligation "${obligation.obligationType}" has no outstanding balance. Cannot apply payment.`,
+      );
+    }
+
+    return {
+      obligationId: obligation.id,
+      obligationType: obligation.obligationType,
+      memberId: obligation.memberId,
+      memberName: obligation.member?.name,
+      originalAmount: Number(obligation.originalAmount),
+      outstandingBalance: Number(obligation.outstandingBalance),
+      status: obligation.status,
+      isEligible: true,
     };
   }
 
@@ -297,6 +411,7 @@ export class CollectionsService {
       ? Number(dto.appliedAmount)
       : Number(collection.paymentAmount);
 
+    // CPS-009: Unapplied — when no obligation is specified
     if (!dto.obligationId || dto.obligationId === 'unapplied') {
       return {
         obligationId: null,
@@ -305,6 +420,8 @@ export class CollectionsService {
         appliedAmount,
         remainingBalance: 0,
         exceptionStatus: 'Unapplied',
+        classificationReason: 'No financial obligation was specified. Payment recorded as unapplied deposit.',
+        newObligationStatus: null,
       };
     }
 
@@ -315,21 +432,42 @@ export class CollectionsService {
       throw new NotFoundException(`Financial obligation with ID "${dto.obligationId}" not found`);
     }
 
+    // CPS-009: Unapplied — when obligation exists but has zero outstanding balance
     const originalBalance = Number(obligation.outstandingBalance);
+    if (originalBalance <= 0) {
+      return {
+        obligationId: obligation.id,
+        obligationType: obligation.obligationType,
+        originalBalance,
+        appliedAmount,
+        remainingBalance: 0,
+        exceptionStatus: 'Unapplied',
+        classificationReason: `Obligation "${obligation.obligationType}" has no outstanding balance (₱${originalBalance.toFixed(2)}). Payment classified as unapplied.`,
+        newObligationStatus: obligation.status,
+      };
+    }
+
     const balanceDifference = originalBalance - appliedAmount;
 
     let remainingBalance = 0;
     let exceptionStatus = 'Exact Match';
+    let classificationReason = '';
 
     if (balanceDifference > 0) {
+      // CPS-009: Partial Payment
       remainingBalance = balanceDifference;
       exceptionStatus = 'Partial Payment';
+      classificationReason = `Payment of ₱${appliedAmount.toFixed(2)} is less than the outstanding balance of ₱${originalBalance.toFixed(2)}. Remaining: ₱${remainingBalance.toFixed(2)}.`;
     } else if (balanceDifference === 0) {
+      // CPS-009: Exact Match
       remainingBalance = 0;
       exceptionStatus = 'Exact Match';
+      classificationReason = `Payment of ₱${appliedAmount.toFixed(2)} exactly matches the outstanding balance.`;
     } else {
+      // CPS-009: Overpayment
       remainingBalance = 0;
       exceptionStatus = 'Overpayment';
+      classificationReason = `Payment of ₱${appliedAmount.toFixed(2)} exceeds the outstanding balance of ₱${originalBalance.toFixed(2)} by ₱${Math.abs(balanceDifference).toFixed(2)}.`;
     }
 
     return {
@@ -339,6 +477,7 @@ export class CollectionsService {
       appliedAmount,
       remainingBalance,
       exceptionStatus,
+      classificationReason,
       newObligationStatus: remainingBalance === 0 ? 'Fully Paid' : 'PARTIALLY_PAID',
     };
   }
@@ -376,6 +515,22 @@ export class CollectionsService {
       )) as any;
     }
 
+    // CPS-006: Set collection category from DTO if provided
+    if (dto.collectionCategory && !collection.collectionCategory) {
+      await this.prisma.collection.update({
+        where: { id },
+        data: { collectionCategory: dto.collectionCategory },
+      });
+      (collection as any).collectionCategory = dto.collectionCategory;
+    }
+
+    // CPS-006: Guard — collection must have a category before posting
+    if (!(collection as any).collectionCategory) {
+      throw new BadRequestException(
+        'CPS-006: Collection must be classified with a valid category before the transaction can be finalized. Use POST /collections/:id/classify first.',
+      );
+    }
+
     const appliedAmount = dto.appliedAmount
       ? Number(dto.appliedAmount)
       : Number(collection.paymentAmount);
@@ -396,7 +551,7 @@ export class CollectionsService {
       collectionRefNo = await this.generateUniqueCollectionRef();
     }
 
-    // CPS-006: Target obligation resolution
+    // CPS-007: Target obligation resolution
     if (dto.obligationId && dto.obligationId !== 'unapplied') {
       const obligation = await this.prisma.financialObligation.findUnique({
         where: { id: dto.obligationId },
@@ -406,43 +561,59 @@ export class CollectionsService {
         throw new NotFoundException(`Financial obligation with ID "${dto.obligationId}" not found.`);
       }
 
-      // CPS-006 Criteria: Must have outstanding balance > 0
-      if (Number(obligation.outstandingBalance) <= 0) {
+      // CPS-007: Verify obligation belongs to the same member
+      if (obligation.memberId !== collection.memberId) {
         throw new BadRequestException(
-          `Cannot apply payment to obligation "${obligation.obligationType}". Outstanding balance is already zero.`,
+          `Obligation "${obligation.obligationType}" belongs to a different member. Cannot apply to this collection.`,
         );
       }
 
-      obligationId = obligation.id;
-      obligationType = obligation.obligationType;
-      originalBalance = Number(obligation.outstandingBalance);
-
-      // CPS-008 & CPS-009 Application Math:
-      const balanceDifference = originalBalance - appliedAmount;
-
-      if (balanceDifference > 0) {
-        // CPS-009: Partial Payment
-        remainingBalance = balanceDifference;
-        exceptionStatus = 'Partial Payment';
-      } else if (balanceDifference === 0) {
-        // CPS-009: Exact Match
-        remainingBalance = 0;
-        exceptionStatus = 'Exact Match';
+      // CPS-009: Zero balance → classify as Unapplied instead of throwing
+      if (Number(obligation.outstandingBalance) <= 0) {
+        obligationId = obligation.id;
+        obligationType = obligation.obligationType;
+        exceptionStatus = 'Unapplied';
+        // Skip obligation update, proceed with Unapplied classification
       } else {
-        // CPS-009: Overpayment
-        remainingBalance = 0;
-        exceptionStatus = 'Overpayment';
-      }
+        obligationId = obligation.id;
+        obligationType = obligation.obligationType;
+        originalBalance = Number(obligation.outstandingBalance);
 
-      // CPS-010: Update Financial Obligation to Fully Paid if balance = 0
-      const newObligationStatus = remainingBalance === 0 ? 'Fully Paid' : 'PARTIALLY_PAID';
-      await this.prisma.financialObligation.update({
-        where: { id: obligation.id },
-        data: {
-          outstandingBalance: remainingBalance,
-          status: newObligationStatus,
-        },
-      });
+        // CPS-008 & CPS-009 Application Math:
+        const balanceDifference = originalBalance - appliedAmount;
+
+        if (balanceDifference > 0) {
+          // CPS-009: Partial Payment
+          remainingBalance = balanceDifference;
+          exceptionStatus = 'Partial Payment';
+        } else if (balanceDifference === 0) {
+          // CPS-009: Exact Match
+          remainingBalance = 0;
+          exceptionStatus = 'Exact Match';
+        } else {
+          // CPS-009: Overpayment
+          remainingBalance = 0;
+          exceptionStatus = 'Overpayment';
+        }
+
+        // CPS-010: Update Financial Obligation balance
+        const newObligationStatus = remainingBalance === 0 ? 'Fully Paid' : 'PARTIALLY_PAID';
+        await this.prisma.financialObligation.update({
+          where: { id: obligation.id },
+          data: {
+            outstandingBalance: remainingBalance,
+            status: newObligationStatus,
+          },
+        });
+      }
+    }
+
+    // CPS-011: Ensure valid payment application or approved exception classification before posting
+    const validExceptions = ['Exact Match', 'Partial Payment', 'Overpayment', 'Unapplied'];
+    if (!validExceptions.includes(exceptionStatus)) {
+      throw new BadRequestException(
+        `CPS-011: Cannot post collection. Invalid exception classification "${exceptionStatus}".`,
+      );
     }
 
     // Upsert Collection Application Record (CPS-008, CPS-009)
@@ -679,6 +850,74 @@ export class CollectionsService {
     }
 
     return collection;
+  }
+
+  /**
+   * CPS-013: Monitor collection totals and categories for financial reporting.
+   * Calculates totals by date, category, member, and source, separately identifying loan repayments.
+   */
+  async getCollectionTotals(filters: {
+    dateFrom?: string;
+    dateTo?: string;
+    category?: string;
+    memberId?: string;
+    source?: string;
+  }) {
+    const where: any = {
+      status: CollectionStatus.POSTED,
+    };
+
+    if (filters.dateFrom || filters.dateTo) {
+      where.paymentDate = {};
+      if (filters.dateFrom) where.paymentDate.gte = new Date(filters.dateFrom);
+      if (filters.dateTo) where.paymentDate.lte = new Date(filters.dateTo);
+    }
+
+    if (filters.category) where.collectionCategory = filters.category;
+    if (filters.memberId) where.memberId = filters.memberId;
+    // For source, we can map it to paymentMethod if it aligns with the application logic
+    if (filters.source) where.paymentMethod = filters.source;
+
+    const collections = await this.prisma.collection.findMany({
+      where,
+      include: {
+        member: { select: { id: true, name: true } },
+      },
+    });
+
+    let grandTotal = 0;
+    let loanRepaymentsTotal = 0;
+    const byCategory: Record<string, number> = {};
+
+    collections.forEach((col) => {
+      const amount = Number(col.paymentAmount);
+      grandTotal += amount;
+
+      const cat = col.collectionCategory || 'Uncategorized';
+      byCategory[cat] = (byCategory[cat] || 0) + amount;
+
+      // CPS-013: Separately identify loan repayments
+      if (cat.toLowerCase().includes('loan')) {
+        loanRepaymentsTotal += amount;
+      }
+    });
+
+    return {
+      filters,
+      totalCollections: collections.length,
+      grandTotal,
+      loanRepaymentsTotal,
+      byCategory,
+      collections: collections.map((col) => ({
+        id: col.id,
+        collectionRefNo: col.collectionRefNo,
+        paymentDate: col.paymentDate,
+        amount: Number(col.paymentAmount),
+        category: col.collectionCategory,
+        member: col.member?.name,
+        source: col.paymentMethod,
+      })),
+    };
   }
 
   /**

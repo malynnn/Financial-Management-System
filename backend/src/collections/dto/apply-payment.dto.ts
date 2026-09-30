@@ -30,4 +30,12 @@ export class ApplyPaymentDto {
   @IsOptional()
   @IsString()
   actorRole?: string;
+
+  @ApiPropertyOptional({
+    description: 'CPS-006: Collection category classification (can be set during apply if not already classified)',
+    example: 'Dues',
+  })
+  @IsOptional()
+  @IsString()
+  collectionCategory?: string;
 }

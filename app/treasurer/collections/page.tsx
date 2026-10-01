@@ -29,7 +29,7 @@ const MOCK_COLLECTIONS = Array.from({ length: 24 }).map((_, index) => {
     date: `2026-09-${(index % 30 + 1).toString().padStart(2, '0')}`,
     method: ['Bank Transfer', 'GCash', 'Over-the-Counter', 'Maya'][index % 4],
     paymentRef: isPosted ? `REF-${8000 + index}` : '',
-    proofUrl: '#',
+    proofUrl: `https://picsum.photos/seed/${index + 1}/400/600.jpg`,
     status: status,
     isReconciled: isPosted && index % 2 === 0,
     rejectReason: isRejected ? 'The attached proof of payment is blurry and unreadable.' : undefined,
@@ -51,8 +51,8 @@ const MOCK_COLLECTIONS = Array.from({ length: 24 }).map((_, index) => {
 const ITEMS_PER_PAGE = 10;
 
 export default function TreasurerCollectionsPage() {
-  const [collections, setCollections] = useState<any[]>(MOCK_COLLECTIONS);
-  const [isLoading, setIsLoading] = useState(false);
+  const [collections, setCollections] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   // filters
   const [searchInput, setSearchInput] = useState('');
@@ -68,67 +68,84 @@ export default function TreasurerCollectionsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'info' | 'error' } | null>(null);
 
-  const fetchCollectionsFromApi = async () => {
+  const mapCollection = (c: any) => {
+    let status = 'Pending';
+    if (c.status === 'POSTED') status = 'Posted';
+    else if (c.status === 'REJECTED') status = 'Rejected';
+    else if (c.status === 'FOR_VERIFICATION') status = 'For Verification';
+    else if (c.status === 'VALIDATED') status = 'For Verification';
+    else if (c.status === 'PENDING') status = 'Pending';
+
+    let method = 'GCash';
+    if (c.paymentMethod === 'BANK_TRANSFER') method = 'Bank Transfer';
+    else if (c.paymentMethod === 'CASH') method = 'Over-the-Counter';
+    else if (c.paymentMethod === 'OTHER') method = 'Other';
+    else if (c.paymentMethod === 'GCASH') method = 'GCash';
+
+    return {
+      id: c.id,
+      ref: c.collectionRefNo || c.paymentReference || `REF-${c.id?.slice(-6)}`,
+      memberId: c.memberId,
+      memberName: c.member?.name || c.memberName || 'Member',
+      amount: Number(c.paymentAmount),
+      date: new Date(c.paymentDate).toISOString().split('T')[0],
+      method,
+      paymentRef: c.paymentReference,
+      proofUrl: c.proofOfPaymentPath ? `${API_BASE_URL}/${c.proofOfPaymentPath}` : '#',
+      status,
+      isReconciled: c.isReadyForReconciliation,
+      rejectReason: c.rejectReason,
+      applicationData: c.application ? {
+        obligationType: c.application.obligation?.obligationType || 'General Obligation',
+        originalBalance: Number(c.application.originalBalance),
+        appliedAmount: Number(c.application.appliedAmount),
+        remainingBalance: Number(c.application.remainingBalance),
+        exceptionStatus: c.application.exceptionStatus,
+      } : undefined,
+      auditTrail: Array.isArray(c.auditTrail) ? c.auditTrail.map((at: any) => ({
+        id: at.id, action: at.action, actor: at.actor, role: at.role,
+        timestamp: at.timestamp, details: at.details,
+      })) : [],
+    };
+  };
+
+  /**
+   * Task 5 (CPS-004): Use GET /collections/queue/pending for the pending queue.
+   * For historical / all-status views use GET /collections.
+   */
+  const fetchCollectionsFromApi = async (forPending = false) => {
     try {
       setIsLoading(true);
-      const res = await fetch(`${API_BASE_URL}/collections`);
+      const endpoint = forPending ? `${API_BASE_URL}/collections/queue/pending` : `${API_BASE_URL}/collections`;
+      const res = await fetch(endpoint);
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          const mapped = data.map((c: any) => {
-            let status = 'Pending';
-            if (c.status === 'POSTED') status = 'Posted';
-            else if (c.status === 'REJECTED') status = 'Rejected';
-            else if (c.status === 'FOR_VERIFICATION') status = 'For Verification';
-            else if (c.status === 'VALIDATED') status = 'For Verification';
-
-            let method = 'GCash';
-            if (c.paymentMethod === 'BANK_TRANSFER') method = 'Bank Transfer';
-            else if (c.paymentMethod === 'CASH') method = 'Over-the-Counter';
-            else if (c.paymentMethod === 'GCASH') method = 'GCash';
-
-            return {
-              id: c.id,
-              ref: c.collectionRefNo || c.paymentReference,
-              memberId: c.memberId,
-              memberName: c.member?.name || 'Member',
-              amount: Number(c.paymentAmount),
-              date: new Date(c.paymentDate).toISOString().split('T')[0],
-              method,
-              paymentRef: c.paymentReference,
-              proofUrl: c.proofOfPaymentPath ? `${API_BASE_URL}/${c.proofOfPaymentPath}` : '#',
-              status,
-              isReconciled: c.isReadyForReconciliation,
-              rejectReason: c.rejectReason,
-              applicationData: c.application ? {
-                obligationType: c.application.obligation?.obligationType || 'General Obligation',
-                originalBalance: Number(c.application.originalBalance),
-                appliedAmount: Number(c.application.appliedAmount),
-                remainingBalance: Number(c.application.remainingBalance),
-                exceptionStatus: c.application.exceptionStatus,
-              } : undefined,
-              auditTrail: c.auditTrail ? c.auditTrail.map((at: any) => ({
-                id: at.id,
-                action: at.action,
-                actor: at.actor,
-                role: at.role,
-                timestamp: at.timestamp,
-                details: at.details,
-              })) : [],
-            };
-          });
-          setCollections(mapped);
+        const arr = Array.isArray(data) ? data : (data.data ?? data.items ?? []);
+        if (arr.length > 0) {
+          setCollections(arr.map(mapCollection));
+          return;
         }
       }
+      // Fallback: If DB is empty or backend returns no items, load mock data for testing
+      const mockFiltered = forPending 
+        ? MOCK_COLLECTIONS.filter(c => c.status === 'Pending' || c.status === 'For Verification')
+        : MOCK_COLLECTIONS;
+      setCollections(mockFiltered);
     } catch {
+      // Fallback: If backend is completely down, load mock data for testing
+      const mockFiltered = forPending 
+        ? MOCK_COLLECTIONS.filter(c => c.status === 'Pending' || c.status === 'For Verification')
+        : MOCK_COLLECTIONS;
+      setCollections(mockFiltered);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCollectionsFromApi();
-  }, []);
+    fetchCollectionsFromApi(statusFilter === 'Requires Action');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter]);
 
   // debounce search input by 300ms
   useEffect(() => {
@@ -181,7 +198,7 @@ export default function TreasurerCollectionsPage() {
     ));
     if (newStatus === 'Posted') showToast('Collection successfully posted and applied to records.', 'success');
     else if (newStatus === 'Rejected') showToast('Collection rejected and flagged for member review.', 'error');
-    fetchCollectionsFromApi();
+    fetchCollectionsFromApi(statusFilter === 'Requires Action');
   };
 
   const formatCurrency = (val: number) => `₱${val.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, FileText, Download, Shield, Clock, ArrowRight, User
 } from 'lucide-react';
@@ -40,7 +40,17 @@ interface Props {
 export default function AuditHistoryModal({ isOpen, onClose, collection, showToast }: Props) {
   const [activeTab, setActiveTab] = useState<'details' | 'timeline'>('details');
 
-  if (!isOpen || !collection) return null;
+  // Animation unmount delay
+  const [shouldRender, setShouldRender] = useState(isOpen);
+  useEffect(() => {
+    if (isOpen) setShouldRender(true);
+    else {
+      const timer = setTimeout(() => setShouldRender(false), 200);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  if (!shouldRender || !collection) return null;
 
   const formatCurrency = (val: number) => `₱${val.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
@@ -67,10 +77,10 @@ export default function AuditHistoryModal({ isOpen, onClose, collection, showToa
   const ultraGlassCard = "bg-white/80 backdrop-blur-[40px] backdrop-saturate-[200%] border border-white/90 shadow-[0_16px_40px_rgba(4,21,45,0.1),inset_0_2px_4px_rgba(255,255,255,1)] rounded-[24px] p-6 lg:p-8 relative overflow-hidden transition-all duration-400";
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 transition-opacity duration-300 opacity-100">
+    <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0'}`}>
       <div className="absolute inset-0 bg-[#04152d]/40 backdrop-blur-md" onClick={onClose} />
       
-      <div className={`relative w-full max-w-3xl max-h-[90vh] flex flex-col animate-modal-enter ${ultraGlassCard}`}>
+      <div className={`relative w-full max-w-3xl max-h-[90vh] flex flex-col ${isOpen ? 'animate-modal-enter' : 'animate-modal-exit'} ${ultraGlassCard}`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/60 pb-4 mb-5 gap-4">
           <div>
             <h3 className="text-[18px] font-semibold text-[#04152d] tracking-tight flex items-center gap-2">

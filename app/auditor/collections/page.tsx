@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  Search, ChevronDown, ChevronLeft, ChevronRight, FileText, CheckCircle2, AlertCircle, Info
+import {
+  Search, ChevronDown, ChevronLeft, ChevronRight, FileText, CheckCircle2, AlertCircle, Info, Shield
 } from 'lucide-react';
 import Header from '@/components/Header';
 import AuditHistoryModal from '@/components/collections/AuditHistoryModal';
@@ -10,7 +10,7 @@ import { API_BASE_URL } from '@/lib/config';
 
 const MOCK_AUDIT_COLLECTIONS = Array.from({ length: 24 }).map((_, index) => {
   const isPosted = index % 3 === 0;
-  
+
   let status = 'Pending';
   if (isPosted) status = 'Posted';
   else if (index % 5 === 0) status = 'Rejected';
@@ -29,7 +29,7 @@ const MOCK_AUDIT_COLLECTIONS = Array.from({ length: 24 }).map((_, index) => {
     paymentRef: isPosted ? `REF-${8000 + index}` : '',
     proofUrl: '#',
     status: status,
-    
+
     applicationData: (isPosted || status === 'For Verification') ? {
       obligationType: 'Annual Dues',
       originalBalance: amount + 500,
@@ -70,13 +70,13 @@ const MOCK_AUDIT_COLLECTIONS = Array.from({ length: 24 }).map((_, index) => {
 const ITEMS_PER_PAGE = 10;
 
 export default function AuditorCollectionsPage() {
-  const [collections, setCollections] = useState<any[]>(MOCK_AUDIT_COLLECTIONS);
-  const [isLoading, setIsLoading] = useState(false);
-  
+  const [collections, setCollections] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [methodFilter, setMethodFilter] = useState('All');
-  
+
   const [currentPage, setCurrentPage] = useState(1);
 
   const [selectedCollection, setSelectedCollection] = useState<any | null>(null);
@@ -86,27 +86,31 @@ export default function AuditorCollectionsPage() {
   const fetchCollectionsFromApi = async () => {
     try {
       setIsLoading(true);
+      /** Task 12/13: Auditor uses GET /collections (read-only, no mutation endpoints called) */
       const res = await fetch(`${API_BASE_URL}/collections`);
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          const mapped = data.map((c: any) => {
+        const arr = Array.isArray(data) ? data : (data.data ?? data.items ?? []);
+        if (arr.length > 0) {
+          const mapped = arr.map((c: any) => {
             let status = 'Pending';
             if (c.status === 'POSTED') status = 'Posted';
             else if (c.status === 'REJECTED') status = 'Rejected';
             else if (c.status === 'FOR_VERIFICATION') status = 'For Verification';
             else if (c.status === 'VALIDATED') status = 'For Verification';
+            else if (c.status === 'PENDING') status = 'Pending';
 
             let method = 'GCash';
             if (c.paymentMethod === 'BANK_TRANSFER') method = 'Bank Transfer';
             else if (c.paymentMethod === 'CASH') method = 'Over-the-Counter';
+            else if (c.paymentMethod === 'OTHER') method = 'Other';
             else if (c.paymentMethod === 'GCASH') method = 'GCash';
 
             return {
               id: c.id,
-              ref: c.collectionRefNo || c.paymentReference,
+              ref: c.collectionRefNo || c.paymentReference || `REF-${c.id?.slice(-6)}`,
               memberId: c.memberId,
-              memberName: c.member?.name || 'Member',
+              memberName: c.member?.name || c.memberName || 'Member',
               amount: Number(c.paymentAmount),
               date: new Date(c.paymentDate).toISOString().split('T')[0],
               method,
@@ -120,13 +124,9 @@ export default function AuditorCollectionsPage() {
                 remainingBalance: Number(c.application.remainingBalance),
                 exceptionStatus: c.application.exceptionStatus,
               } : undefined,
-              auditTrail: c.auditTrail ? c.auditTrail.map((at: any) => ({
-                id: at.id,
-                action: at.action,
-                actor: at.actor,
-                role: at.role,
-                timestamp: at.timestamp,
-                details: at.details,
+              auditTrail: Array.isArray(c.auditTrail) ? c.auditTrail.map((at: any) => ({
+                id: at.id, action: at.action, actor: at.actor, role: at.role,
+                timestamp: at.timestamp, details: at.details,
               })) : [],
             };
           });
@@ -134,7 +134,7 @@ export default function AuditorCollectionsPage() {
         }
       }
     } catch {
-      // Fallback
+      // Fallback: keep empty state
     } finally {
       setIsLoading(false);
     }
@@ -155,10 +155,10 @@ export default function AuditorCollectionsPage() {
 
   const filteredCollections = useMemo(() => {
     return collections.filter(c => {
-      const matchesSearch = c.ref.toLowerCase().includes(search.toLowerCase()) || 
-                            c.memberName.toLowerCase().includes(search.toLowerCase()) ||
-                            c.memberId.toLowerCase().includes(search.toLowerCase());
-      
+      const matchesSearch = c.ref.toLowerCase().includes(search.toLowerCase()) ||
+        c.memberName.toLowerCase().includes(search.toLowerCase()) ||
+        c.memberId.toLowerCase().includes(search.toLowerCase());
+
       const matchesMethod = methodFilter === 'All' || c.method === methodFilter;
       const matchesStatus = statusFilter === 'All' || c.status === statusFilter;
 
@@ -224,15 +224,15 @@ export default function AuditorCollectionsPage() {
         <div className={`${ultraGlassCard} !p-4 flex flex-col lg:flex-row gap-4 items-center justify-between`}>
           <div className="relative w-full lg:w-1/3">
             <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#04152d]/50" />
-            <input 
-              type="text" 
-              placeholder="Search Ref, Member ID, or Name..." 
+            <input
+              type="text"
+              placeholder="Search Ref, Member ID, or Name..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className={`${glassInput} w-full`} 
+              className={`${glassInput} w-full`}
             />
           </div>
-          
+
           <div className="flex w-full lg:w-auto gap-3">
             <div className="relative w-full sm:w-auto">
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={`${glassInput} !pl-4 appearance-none pr-10 w-full cursor-pointer`}>
@@ -288,7 +288,7 @@ export default function AuditorCollectionsPage() {
                         <td className="py-4 px-6 text-center">{getStatusBadge(col.status)}</td>
 
                         <td className="py-4 px-6 text-right">
-                          <button 
+                          <button
                             onClick={() => { setSelectedCollection(col); setIsModalOpen(true); }}
                             className="px-4 py-2 bg-white backdrop-blur-md border border-white/80 shadow-[0_2px_8px_rgba(4,21,45,0.05)] hover:shadow-md rounded-full text-[11px] font-semibold text-blue-600 uppercase tracking-widest transition-all active:scale-95 flex items-center justify-end gap-1.5 ml-auto"
                           >
@@ -297,7 +297,7 @@ export default function AuditorCollectionsPage() {
                         </td>
                       </tr>
                     ))}
-                    
+
                     {currentPage === totalPages && (
                       <tr>
                         <td colSpan={6} className="py-8 text-center text-[#04152d]/40 text-[12px] italic tracking-wide">
@@ -322,9 +322,9 @@ export default function AuditorCollectionsPage() {
               <p className="text-[12px] text-[#04152d]/60 font-medium hidden sm:block">
                 Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredCollections.length)} of {filteredCollections.length} entries
               </p>
-              
+
               <div className="flex items-center gap-1 mx-auto sm:mx-0">
-                <button 
+                <button
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
                   className={`${pageBtn} bg-white/60 text-[#04152d] border border-white hover:bg-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed`}
@@ -337,17 +337,16 @@ export default function AuditorCollectionsPage() {
                     key={idx}
                     onClick={() => typeof pageNum === 'number' ? setCurrentPage(pageNum) : null}
                     disabled={pageNum === '...'}
-                    className={`${pageBtn} ${
-                      pageNum === currentPage 
-                        ? 'bg-[#04152d] text-white shadow-md' 
-                        : 'bg-transparent text-[#04152d]/70 hover:bg-white/60 border border-transparent'
-                    } ${pageNum === '...' ? 'cursor-default opacity-50' : ''}`}
+                    className={`${pageBtn} ${pageNum === currentPage
+                      ? 'bg-[#04152d] text-white shadow-md'
+                      : 'bg-transparent text-[#04152d]/70 hover:bg-white/60 border border-transparent'
+                      } ${pageNum === '...' ? 'cursor-default opacity-50' : ''}`}
                   >
                     {pageNum}
                   </button>
                 ))}
 
-                <button 
+                <button
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
                   className={`${pageBtn} bg-white/60 text-[#04152d] border border-white hover:bg-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed`}
@@ -361,7 +360,7 @@ export default function AuditorCollectionsPage() {
 
       </div>
 
-      <AuditHistoryModal 
+      <AuditHistoryModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         collection={selectedCollection}
@@ -370,14 +369,13 @@ export default function AuditorCollectionsPage() {
 
       {toast && (
         <div className={`fixed bottom-6 right-6 z-[150] animate-slide-up bg-white/80 backdrop-blur-2xl border border-white shadow-[0_8px_30px_rgba(0,0,0,0.12)] p-4 rounded-[16px] flex items-center gap-3 min-w-[300px]`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border ${
-            toast.type === 'success' ? 'bg-emerald-100/50 border-emerald-200 text-emerald-600' :
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border ${toast.type === 'success' ? 'bg-emerald-100/50 border-emerald-200 text-emerald-600' :
             toast.type === 'error' ? 'bg-red-100/50 border-red-200 text-red-600' :
-            'bg-blue-100/50 border-blue-200 text-blue-600'
-          }`}>
+              'bg-blue-100/50 border-blue-200 text-blue-600'
+            }`}>
             {toast.type === 'success' ? <CheckCircle2 size={16} /> :
-             toast.type === 'error' ? <AlertCircle size={16} /> :
-             <Info size={16} />}
+              toast.type === 'error' ? <AlertCircle size={16} /> :
+                <Info size={16} />}
           </div>
           <p className="text-[13px] font-medium text-[#04152d] leading-tight pr-4">
             {toast.message}

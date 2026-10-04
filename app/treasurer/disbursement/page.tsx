@@ -24,7 +24,8 @@ import {
   Eye,
   CreditCard,
   Filter,
-  RotateCcw
+  RotateCcw,
+  X
 } from 'lucide-react';
 import Header from '@/components/Header';
 import DisbursementFormModal, {
@@ -1020,6 +1021,7 @@ export default function TreasurerDisbursementProcessingPage() {
         onViewVoucher={() => {
           setSelectedDisbursementForVoucher(lastFinalizedDisbursement);
           setIsVoucherModalOpen(true);
+          setIsSuccessModalOpen(false);
         }}
         disbursement={lastFinalizedDisbursement}
       />
@@ -1044,6 +1046,45 @@ export default function TreasurerDisbursementProcessingPage() {
         disbursement={selectedDisbursementForAudit}
         showToast={showToast}
       />
+
+      {/* Floating Animated Toast Notification */}
+      {toast && (
+        <div className="fixed top-6 right-6 z-50 animate-slide-down flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/95 backdrop-blur-2xl border border-white/90 shadow-[0_12px_40px_rgba(4,21,45,0.18)] max-w-md transition-all duration-300">
+          <div
+            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+              toast.type === 'success'
+                ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                : toast.type === 'error'
+                ? 'bg-rose-500/10 text-rose-600 border border-rose-500/20'
+                : 'bg-blue-500/10 text-blue-600 border border-blue-500/20'
+            }`}
+          >
+            {toast.type === 'success' ? (
+              <CheckCircle2 size={18} />
+            ) : toast.type === 'error' ? (
+              <AlertCircle size={18} />
+            ) : (
+              <Info size={18} />
+            )}
+          </div>
+
+          <div className="flex-1 pr-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[#04152d]/50">
+              {toast.type === 'success' ? 'Transaction Success' : toast.type === 'error' ? 'Security Notice' : 'System Information'}
+            </p>
+            <p className="text-[13px] font-semibold text-[#04152d] leading-snug">
+              {toast.message}
+            </p>
+          </div>
+
+          <button
+            onClick={() => setToast(null)}
+            className="w-6 h-6 rounded-full hover:bg-black/5 text-[#04152d]/40 hover:text-[#04152d] flex items-center justify-center transition-colors cursor-pointer"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -4,13 +4,8 @@ import React from 'react';
 import {
   CheckCircle2,
   X,
-  Wallet,
-  ArrowRight,
-  TrendingDown,
   Building2,
-  FileText,
-  CreditCard,
-  Printer
+  FileText
 } from 'lucide-react';
 
 interface FundFinancialEffect {
@@ -43,19 +38,24 @@ interface DisbursementSuccessModalProps {
 export default function DisbursementSuccessModal({
   isOpen,
   onClose,
+  onViewVoucher,
   disbursement
 }: DisbursementSuccessModalProps) {
   if (!isOpen || !disbursement) return null;
 
   const effect = disbursement.fundFinancialEffect || {
-    fundName: disbursement.fundSource,
+    fundName: disbursement.fundSource || 'Fund',
     previousBalance: 850000,
-    disbursedAmount: disbursement.amount,
-    updatedBalance: 850000 - disbursement.amount
+    disbursedAmount: disbursement.amount || 0,
+    updatedBalance: 850000 - (disbursement.amount || 0)
   };
 
-  const formatCurrency = (val: number) =>
-    `₱${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const formatCurrency = (val?: number | string | null) => {
+    if (val === undefined || val === null) return '₱0.00';
+    const num = typeof val === 'number' ? val : parseFloat(val);
+    if (isNaN(num)) return '₱0.00';
+    return `₱${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#04152d]/60 backdrop-blur-md animate-fade-in overflow-y-auto">
@@ -66,13 +66,18 @@ export default function DisbursementSuccessModal({
         {/* Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-700 shadow-sm">
-              <CheckCircle2 size={26} />
+            <div className="relative w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-600 shadow-sm animate-pulse-ring">
+              <CheckCircle2 size={26} className="text-emerald-600" />
             </div>
             <div>
-              <h2 className="text-[18px] font-bold text-[#04152d] tracking-tight">
-                Disbursement Finalized
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-[18px] font-bold text-[#04152d] tracking-tight">
+                  Disbursement Finalized
+                </h2>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                  Audited
+                </span>
+              </div>
               <p className="text-[12px] text-[#04152d]/60">
                 Transaction recorded under Ref <span className="font-mono font-bold text-blue-700">{disbursement.ref}</span>
               </p>
@@ -81,7 +86,7 @@ export default function DisbursementSuccessModal({
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/70 hover:bg-white text-[#04152d]/60 hover:text-[#04152d] flex items-center justify-center transition-all duration-200 border border-white shadow-sm"
+            className="w-8 h-8 rounded-full bg-white/70 hover:bg-white text-[#04152d]/60 hover:text-[#04152d] flex items-center justify-center transition-all duration-200 border border-white shadow-sm hover:scale-105 active:scale-95 cursor-pointer"
           >
             <X size={16} />
           </button>
@@ -169,7 +174,7 @@ export default function DisbursementSuccessModal({
             <button
               type="button"
               onClick={onViewVoucher}
-              className="w-full sm:flex-1 py-2.5 rounded-full border border-gray-300 bg-white hover:bg-gray-50 text-[13px] font-semibold text-[#04152d] transition-all duration-200 active:scale-95 flex items-center justify-center gap-1.5 shadow-sm"
+              className="w-full sm:flex-1 py-2.5 rounded-full border border-gray-300 bg-white hover:bg-gray-50 text-[13px] font-semibold text-[#04152d] transition-all duration-200 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
             >
               <FileText size={15} className="text-blue-600" />
               <span>View Voucher & Download PDF</span>
@@ -179,7 +184,7 @@ export default function DisbursementSuccessModal({
           <button
             type="button"
             onClick={onClose}
-            className="w-full sm:flex-1 py-2.5 bg-gradient-to-b from-[#0a1e3f] to-[#04152d] text-white shadow-md hover:shadow-lg rounded-full text-[13px] font-semibold transition-all duration-200 active:scale-95 text-center"
+            className="w-full sm:flex-1 py-2.5 bg-gradient-to-b from-[#0a1e3f] to-[#04152d] text-white shadow-md hover:shadow-lg rounded-full text-[13px] font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-95 text-center cursor-pointer"
           >
             Acknowledge & Return to List
           </button>

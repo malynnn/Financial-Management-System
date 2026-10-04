@@ -24,7 +24,7 @@ export default function Sidebar() {
   if (pathname === '/login') return null;
 
   let currentUserRole = 'User';
-  
+
   if (pathname.startsWith('/treasurer')) {
     currentUserRole = 'Treasurer';
   } else if (pathname.startsWith('/admin')) {
@@ -45,8 +45,8 @@ export default function Sidebar() {
 
   const rawName = session?.user?.name || session?.user?.email?.split('@')[0] || 'User';
   const nameParts = rawName.trim().split(' ');
-  const lastName = nameParts.pop(); 
-  const firstName = nameParts.join(' '); 
+  const lastName = nameParts.pop();
+  const firstName = nameParts.join(' ');
 
   const generalNavItems = [
     { label: 'Dashboard', href: '/dashboard', icon: Home, roles: ['User', 'Officer/Admin', 'Superadmin', 'Treasurer', 'Auditor'] },
@@ -69,14 +69,14 @@ export default function Sidebar() {
 
 
         { label: 'Dashboard', href: '/treasurer/dashboard', icon: LayoutDashboard, roles: ['Treasurer'] },
-        { label: 'Collections', href: '/treasurer/collections', icon: WalletCards, roles: ['Treasurer'] },
         { label: 'Disbursement', href: '/treasurer/disbursement', icon: Send, roles: ['Treasurer'] },
+        { label: 'Collections', href: '/treasurer/collections', icon: WalletCards, roles: ['Treasurer'] },
         { label: 'Funds', href: '/treasurer/funds', icon: Briefcase, roles: ['Treasurer'] },
         { label: 'Forecasting', href: '/treasurer/forecasting', icon: Activity, roles: ['Treasurer'] },
-        
+
         // { label: 'Audit Overview', href: '/auditor/collections', icon: ClipboardList, roles: ['Auditor'] },
-        { label: 'Collections', href: '/auditor/collections', icon: FileText, roles: ['Auditor'] },
         { label: 'Disbursement', href: '/auditor/disbursement', icon: Send, roles: ['Auditor'] },
+        { label: 'Collections', href: '/auditor/collections', icon: FileText, roles: ['Auditor'] },
         { label: 'Funds', href: '/auditor/funds', icon: Briefcase, roles: ['Auditor'] },
       ]
     },
@@ -101,9 +101,8 @@ export default function Sidebar() {
       const isDirectActive = !hasSubItems && (item.href === '/' ? pathname === '/' : pathname.startsWith(item.href!));
       const isOpen = openMenus[item.label] || isParentActive;
 
-      const baseClasses = `flex items-center transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] font-semibold text-[13px] w-full relative active:scale-[0.98] group z-10 outline-none ${
-        isCollapsed ? 'justify-center w-11 h-11 rounded-[16px] mx-auto' : 'px-3.5 py-3 rounded-[16px] justify-between'
-      }`;
+      const baseClasses = `flex items-center transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] font-semibold text-[13px] w-full relative active:scale-[0.98] group z-10 outline-none ${isCollapsed ? 'justify-center w-11 h-11 rounded-[16px] mx-auto' : 'px-3.5 py-3 rounded-[16px] justify-between'
+        }`;
 
       const activeClasses = isOpen || isParentActive || isDirectActive
         ? 'bg-white/[0.08] shadow-[0_4px_12px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.1)] text-white border border-white/[0.1] scale-[1.01]'
@@ -169,7 +168,7 @@ export default function Sidebar() {
       `}</style>
 
       <aside className={`relative h-full flex-shrink-0 z-50 flex flex-col bg-[#0a1224]/80 backdrop-blur-[50px] backdrop-saturate-[150%] border-r border-white/5 shadow-[4px_0_32px_rgba(0,0,0,0.3)] transition-all duration-400 ease-[cubic-bezier(0.25,1,0.5,1)] print:hidden ${isCollapsed ? 'w-[100px]' : 'w-[290px]'}`}>
-        
+
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 mix-blend-screen opacity-50">
           <div className="absolute w-[400px] h-[400px] bg-blue-600/30 rounded-full blur-[90px] -top-20 -left-20 animate-[deep-liquid-drift_15s_ease-in-out_infinite]" />
           <div className="absolute w-[350px] h-[350px] bg-amber-500/20 rounded-full blur-[90px] top-1/4 -right-20 animate-[deep-liquid-drift_12s_ease-in-out_infinite]" style={{ animationDelay: '2s' }} />
@@ -195,7 +194,7 @@ export default function Sidebar() {
             </div>
 
             <nav className={`flex-1 overflow-y-auto space-y-8 [&::-webkit-scrollbar]:hidden pb-4 pt-2 ${isCollapsed ? 'px-3' : 'px-6'}`}>
-              
+
               {visibleGeneralItems.length > 0 && (
                 <div className="flex flex-col space-y-2">
                   {!isCollapsed && <p className="text-[10px] font-semibold text-white/30 uppercase tracking-[0.25em] mb-1 px-2 drop-shadow-sm">Main Menu</p>}
@@ -211,7 +210,7 @@ export default function Sidebar() {
                 ) : (
                   <div className="h-px bg-white/10 w-8 mx-auto my-4" />
                 )}
-                
+
                 <div className={glassGroupContainer}>
                   {visibleSystemItems.map((item, idx) => (
                     <div key={idx} className="flex flex-col w-full">

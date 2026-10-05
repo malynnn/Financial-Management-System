@@ -29,6 +29,7 @@ import {
   HelpCircle,
   CheckSquare
 } from 'lucide-react';
+import { createDisbursementRequest, executeDisbursement, fromBackendMethod } from '@/lib/disbursementApi';
 
 export type DisbursementType = 'Loan Release' | 'Expense' | 'Other Authorized Release';
 export type PaymentMethod = 'Cheque' | 'Bank Transfer' | 'Cash Voucher';
@@ -91,6 +92,12 @@ export interface ProcessableItem {
   paymentMethod?: PaymentMethod;
   chequeNumber?: string;
   chequeStatus?: ChequeStatus;
+  // Backend links (Loan Release only)
+  obligationId?: string; // approved loan -> POST /disbursements/request
+  memberId?: string;
+  beneficiaryBank?: string;
+  beneficiaryAccount?: string;
+  disbursementId?: string; // Admin-approved disbursement -> POST /disbursements/:id/execute
 }
 
 interface DisbursementFormModalProps {
@@ -99,6 +106,8 @@ interface DisbursementFormModalProps {
   itemToProcess?: ProcessableItem | null;
   funds?: FundRecord[];
   onDisbursementComplete: (completedDisbursement: any) => void;
+  /** Called after a Loan Release request is submitted for Admin approval. */
+  onRequestSubmitted?: (created: any) => void;
 }
 
 export default function DisbursementFormModal({
@@ -106,7 +115,8 @@ export default function DisbursementFormModal({
   onClose,
   itemToProcess,
   funds = CONFIGURED_FUNDS,
-  onDisbursementComplete
+  onDisbursementComplete,
+  onRequestSubmitted
 }: DisbursementFormModalProps) {
   // Modal step: 'input' (Task 1-8, 10) vs 'review' (Task 11)
   const [step, setStep] = useState<'input' | 'review'>('input');
@@ -492,55 +502,80 @@ export default function DisbursementFormModal({
 
     try {
       const numericAmount = parseFloat(amount);
-      const prevBal = selectedFundRecord?.balance || 0;
-      const updatedBal = prevBal - numericAmount;
 
+      let backendRef: string | undefined;
+
+      // Unexecuted Request
+      if (!itemToProcess?.disbursementId) {
+        if (disbursementType === 'Loan Release' && (!itemToProcess?.obligationId || !itemToProcess.memberId)) {
+          throw new Error('Loan Releases must be processed from an approved loan in the queue (no linked loan record).');
+        }
+        
+        // DMP-001/002/005/012: backend validates, assigns the reference number, queues for Admin approval
+        const payload: any = {
+          type: disbursementType,
+          category: category,
+          purpose: purpose.trim(),
+          date: disbursementDate,
+          supportingDocRef: supportingDocRef.trim(),
+          amount: numericAmount,
+          paymentMethod,
+          fundSource,
+          beneficiaryName: payee.trim(),
+          beneficiaryBank: itemToProcess?.beneficiaryBank,
+          beneficiaryAccount: itemToProcess?.beneficiaryAccount,
+          description: `Doc: ${supportingDocRef.trim()}`
+        };
+
+        if (disbursementType === 'Loan Release') {
+          payload.obligationId = itemToProcess?.obligationId;
+          payload.memberId = itemToProcess?.memberId;
+        }
+
+        if (paymentMethod === 'Cheque') {
+          payload.cheque = {
+            chequeNumber: chequeNumber.trim(),
+            chequeDate: chequeDate,
+            payee: chequePayee.trim(),
+            amount: parseFloat(chequeAmount),
+            purpose: chequePurpose.trim(),
+          };
+        }
+
+        const created = await createDisbursementRequest(payload);
+        onRequestSubmitted?.(created);
+        onClose();
+        return;
+      }
+
+      // Execute an Admin-approved disbursement
+      const executed = await executeDisbursement(
+        itemToProcess.disbursementId,
+        paymentMethod === 'Cheque' ? chequeNumber.trim() : undefined,
+        `Doc: ${supportingDocRef.trim()}`
+      );
+      backendRef = executed.disbursementRefNo;
+
+      // Call onDisbursementComplete with the backend record format
+      const methodStr = fromBackendMethod(executed.paymentMethod);
       const disbursementRecord = {
-        id: itemToProcess?.id || `disb-${Date.now()}`,
-        ref: supportingDocRef.trim(),
-        type: disbursementType,
-        category: category,
-        payee: payee.trim(),
-        purpose: purpose.trim(),
-        amount: numericAmount,
-        fundSource: fundSource,
-        date: disbursementDate,
+        id: executed.id,
+        ref: executed.disbursementRefNo,
+        type: executed.type === 'LOAN_RELEASE' ? 'Loan Release' : executed.type === 'EXPENSE' ? 'Expense' : 'Other Authorized Release',
+        category: executed.category,
+        payee: executed.beneficiaryName,
+        purpose: executed.purpose || executed.category,
+        amount: Number(executed.amount),
+        fundSource: executed.fundSource,
+        date: executed.date,
         status: 'Disbursed',
-        paymentMethod: paymentMethod,
-        supportingDocRef: supportingDocRef.trim(),
-        // Loan details
-        loanRef: disbursementType === 'Loan Release' ? loanRef.trim() : undefined,
-        approvedLoanAmount:
-          disbursementType === 'Loan Release' ? parseFloat(approvedLoanAmount) : undefined,
-        actualAmountReleased:
-          disbursementType === 'Loan Release' ? parseFloat(actualAmountReleased) : numericAmount,
-        // Task 8 & 9: Cheque details
-        chequeRecord:
-          paymentMethod === 'Cheque'
-            ? {
-                chequeNumber: chequeNumber.trim(),
-                chequeDate: chequeDate,
-                payee: chequePayee.trim(),
-                amount: parseFloat(chequeAmount),
-                purpose: chequePurpose.trim(),
-                relatedReference: chequeRelatedRef.trim(),
-                status: chequeStatus
-              }
-            : undefined,
-        chequeNumber: paymentMethod === 'Cheque' ? chequeNumber.trim() : undefined,
-        chequeStatus: paymentMethod === 'Cheque' ? chequeStatus : undefined,
-        // Task 14: Balance effect details
-        fundFinancialEffect: {
-          fundName: fundSource,
-          previousBalance: prevBal,
-          disbursedAmount: numericAmount,
-          updatedBalance: updatedBal
-        },
+        paymentMethod: methodStr,
+        supportingDocRef: executed.supportingDocRef,
+        chequeNumber: methodStr === 'Cheque' ? executed.cheque?.chequeNumber : undefined,
+        chequeStatus: methodStr === 'Cheque' ? executed.cheque?.status : undefined,
         processedAt: new Date().toISOString(),
         processedBy: 'Treasurer'
       };
-
-      await new Promise((r) => setTimeout(r, 600));
 
       onDisbursementComplete(disbursementRecord);
       onClose();

@@ -43,6 +43,18 @@ enum DisbursementStatus {
   REJECTED
 }
 
+enum DisbursementType {
+  LOAN_RELEASE
+  EXPENSE
+  OTHER_AUTHORIZED_RELEASE
+}
+
+enum ChequeStatus {
+  ISSUED
+  ENCASHED
+  CANCELLED_VOID
+}
+
 // ─────────────────────────────────────────
 // USER / AUTH
 // ─────────────────────────────────────────
@@ -56,10 +68,12 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  collections   Collection[]
-  obligations   FinancialObligation[]
-  disbursements Disbursement[]
-  fundTransfers FundTransfer[]
+  collections           Collection[]
+  obligations           FinancialObligation[]
+  disbursements         Disbursement[] @relation("CreatedBy")
+  disbursementsExecuted Disbursement[] @relation("DisbursedBy")
+  disbursementAuditLogs DisbursementAuditLog[]
+  fundTransfers         FundTransfer[]
 }
 
 // ─────────────────────────────────────────
@@ -244,9 +258,14 @@ model FundAccount {
 
 model Disbursement {
   id                 String             @id @default(cuid())
-  disbursementRefNo  String?            @unique // e.g. "REQ-2026-0001"
+  disbursementRefNo  String?            @unique // e.g. "DSB-2026-00001"
   obligationId       String?
-  memberId           String
+  memberId           String?
+  type               DisbursementType   @default(LOAN_RELEASE)
+  category           String             @default("Loan Release")
+  purpose            String?
+  supportingDocRef   String?
+  approvedLoanAmount Decimal?           @db.Decimal(12, 2)
   amount             Decimal            @db.Decimal(12, 2)
   fundSource         String             @default("General Fund")
   fundId             String?
@@ -269,9 +288,32 @@ model Disbursement {
 
   fund               Fund?              @relation(fields: [fundId], references: [id])
   disbursedById      String?
-  disbursedBy        User?              @relation(fields: [disbursedById], references: [id])
+  disbursedBy        User?              @relation("DisbursedBy", fields: [disbursedById], references: [id])
+  createdById        String?
+  createdBy          User?              @relation("CreatedBy", fields: [createdById], references: [id])
   obligation         FinancialObligation? @relation(fields: [obligationId], references: [id])
   auditTrail         DisbursementAuditLog[]
+  cheque             ChequeRecord?
+}
+
+model ChequeRecord {
+  id             String       @id @default(cuid())
+  disbursementId String       @unique
+  chequeNumber   String       @unique
+  chequeDate     DateTime
+  payee          String
+  amount         Decimal      @db.Decimal(12,2)
+  purpose        String
+  relatedRef     String
+  status         ChequeStatus @default(ISSUED)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  disbursement   Disbursement @relation(fields: [disbursementId], references: [id])
+}
+
+model DisbursementSequence {
+  year Int @id
+  last Int @default(0)
 }
 
 // ─────────────────────────────────────────
@@ -282,6 +324,7 @@ model DisbursementAuditLog {
   id                String       @id @default(cuid())
   disbursementId    String
   userId            String?
+  user              User?        @relation(fields: [userId], references: [id])
   disbursementRefNo String?
   action            String
   previousStatus    String?

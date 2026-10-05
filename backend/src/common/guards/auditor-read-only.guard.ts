@@ -7,9 +7,7 @@ import {
 import { Observable } from 'rxjs';
 
 /**
- * CPS-013: The system shall allow the Internal Auditor to retrieve collection
- * records and audit history but shall reject create, update, delete, apply,
- * and post operations performed by the Internal Auditor.
+ * CPS-013 & DMP-014: Internal Auditor has read-only access.
  */
 @Injectable()
 export class AuditorReadOnlyGuard implements CanActivate {
@@ -24,20 +22,15 @@ export class AuditorReadOnlyGuard implements CanActivate {
       return true;
     }
 
-    // Check role from header or body
-    const userRole = (
-      request.headers['x-user-role'] ||
-      request.body?.actorRole ||
-      request.user?.role ||
-      ''
-    ).toString().toUpperCase();
+    // Role should now be attached by RequestContextGuard
+    const userRole = request.user?.role?.toString().toUpperCase() || '';
 
     if (userRole === 'AUDITOR' || userRole === 'INTERNAL AUDITOR' || userRole === 'INTERNAL_AUDITOR') {
       throw new ForbiddenException(
-        'CPS-013: Internal Auditors have read-only access and are not permitted to create, update, delete, apply, or post collection operations.',
+        'Internal Auditors have read-only access and are not permitted to create, update, delete, apply, or post operations.',
       );
     }
 
     return true;
   }
-}
+}

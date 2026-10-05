@@ -23,6 +23,26 @@ export class QueryDisbursementDto {
   @IsString()
   endDate?: string;
 
+  @ApiPropertyOptional({ description: 'Filter by disbursement type' })
+  @IsOptional()
+  @IsString()
+  type?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by disbursement category' })
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by fund source' })
+  @IsOptional()
+  @IsString()
+  fundSource?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by cheque status' })
+  @IsOptional()
+  @IsString()
+  chequeStatus?: string;
+
   @ApiPropertyOptional({ description: 'Page number', default: 1 })
   @IsOptional()
   @Type(() => Number)

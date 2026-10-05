@@ -40,146 +40,51 @@ import DisbursementFormModal, {
 import DisbursementSuccessModal from '@/components/disbursement/DisbursementSuccessModal';
 import DisbursementAuditModal from '@/components/disbursement/DisbursementAuditModal';
 import DisbursementVoucherModal from '@/components/disbursement/DisbursementVoucherModal';
-
-// Initial queue of items ready to be processed for disbursement
-const INITIAL_PROCESSING_QUEUE: ProcessableItem[] = [
-  {
-    id: 'ITM-2026-0891',
-    ref: 'LN-2026-0891',
-    type: 'Loan Release',
-    category: 'Loan Release',
-    payee: 'Maria Clara Santos',
-    purpose: 'Approved Multi-Purpose Member Loan Release',
-    fundSource: 'Loan Fund',
-    approvedAmount: 50000,
-    amount: 50000,
-    loanRef: 'LN-2026-0891',
-    date: '2026-10-04',
-    paymentMethod: 'Cheque',
-    chequeNumber: 'CHK-2026-8801',
-    chequeStatus: 'Issued'
-  },
-  {
-    id: 'ITM-2026-0892',
-    ref: 'LN-2026-0892',
-    type: 'Loan Release',
-    category: 'Loan Release',
-    payee: 'Juan Dela Cruz',
-    purpose: 'Emergency Medical Assistance Loan',
-    fundSource: 'Loan Fund',
-    approvedAmount: 25000,
-    amount: 25000,
-    loanRef: 'LN-2026-0892',
-    date: '2026-10-04',
-    paymentMethod: 'Cheque',
-    chequeNumber: 'CHK-2026-8802',
-    chequeStatus: 'Issued'
-  },
-  {
-    id: 'ITM-2026-0104',
-    ref: 'EXP-2026-0104',
-    type: 'Expense',
-    category: 'Operational Expense',
-    payee: 'Meralco Power Distribution Corp',
-    purpose: 'Monthly Office Electricity Bill & Server Room Power',
-    fundSource: 'General Fund',
-    amount: 14850,
-    date: '2026-10-03',
-    paymentMethod: 'Bank Transfer'
-  },
-  {
-    id: 'ITM-2026-0312',
-    ref: 'AUTH-2026-0312',
-    type: 'Other Authorized Release',
-    category: 'Member Benefit / Calamity Assistance',
-    payee: 'Jose Protacio Rizal',
-    purpose: 'Approved Typhoon Flooding Relief Assistance Grant',
-    fundSource: 'Calamity Fund',
-    amount: 20000,
-    date: '2026-10-02',
-    paymentMethod: 'Cheque',
-    chequeNumber: 'CHK-2026-8790',
-    chequeStatus: 'Issued'
-  },
-  {
-    id: 'ITM-2026-0888',
-    ref: 'LN-2026-0888',
-    type: 'Loan Release',
-    category: 'Loan Release',
-    payee: 'Emilio Aguinaldo',
-    purpose: 'Agricultural Production & Livelihood Loan',
-    fundSource: 'Loan Fund',
-    approvedAmount: 75000,
-    amount: 75000,
-    loanRef: 'LN-2026-0888',
-    date: '2026-10-01',
-    paymentMethod: 'Cheque',
-    chequeNumber: 'CHK-2026-8785',
-    chequeStatus: 'Issued'
-  },
-  {
-    id: 'ITM-2026-0099',
-    ref: 'EXP-2026-0099',
-    type: 'Expense',
-    category: 'Administrative Expense',
-    payee: 'National Bookstore Corporate Sales',
-    purpose: 'Annual Assembly Documentation & Printing Supplies',
-    fundSource: 'General Fund',
-    amount: 4320,
-    date: '2026-09-28',
-    paymentMethod: 'Cash Voucher'
-  }
-];
-
-const INITIAL_PROCESSED_HISTORY = [
-  {
-    id: 'disb-past-1',
-    ref: 'VCH-2026-0044',
-    type: 'Expense' as DisbursementType,
-    category: 'Administrative Expense',
-    payee: 'PLDT Enterprise Broadband',
-    purpose: 'Cooperative HQ Internet & Cloud Line Connection',
-    fundSource: 'General Fund',
-    amount: 5499,
-    date: '2026-09-27',
-    status: 'Disbursed',
-    paymentMethod: 'Bank Transfer',
-    supportingDocRef: 'VCH-2026-0044',
-    processedAt: '2026-09-27T10:15:00Z',
-    processedBy: 'Treasurer'
-  },
-  {
-    id: 'disb-past-2',
-    ref: 'VCH-2026-0043',
-    type: 'Loan Release' as DisbursementType,
-    category: 'Loan Release',
-    payee: 'Andres Bonifacio',
-    purpose: 'Educational Loan for Tertiary Tuition',
-    fundSource: 'Loan Fund',
-    approvedLoanAmount: 30000,
-    actualAmountReleased: 30000,
-    loanRef: 'LN-2026-0870',
-    amount: 30000,
-    date: '2026-09-25',
-    status: 'Disbursed',
-    paymentMethod: 'Cheque',
-    chequeNumber: 'CHK-2026-8710',
-    chequeStatus: 'Encashed' as ChequeStatus,
-    supportingDocRef: 'VCH-2026-0043',
-    processedAt: '2026-09-25T14:30:00Z',
-    processedBy: 'Treasurer'
-  }
-];
+import {
+  fetchFunds,
+  fetchEligibleLoans,
+  fetchDisbursementRecords
+} from '@/lib/disbursementApi';
 
 const ITEMS_PER_PAGE = 8;
 
 export default function TreasurerDisbursementProcessingPage() {
-  // Live fund balances (Task 5, 10, 14)
-  const [funds, setFunds] = useState<FundRecord[]>(CONFIGURED_FUNDS);
+  // Live fund balances from GET /disbursements/funds/summary (DMP-011, DMP-012)
+  const [funds, setFunds] = useState<FundRecord[]>([]);
 
-  // Pending queue & Processed records
-  const [processingQueue, setProcessingQueue] = useState<ProcessableItem[]>(INITIAL_PROCESSING_QUEUE);
-  const [processedDisbursements, setProcessedDisbursements] = useState<any[]>(INITIAL_PROCESSED_HISTORY);
+  // Pending queue (approved loans to request + Admin-approved disbursements to release),
+  // Processed (EXECUTED) and in-flight records (Pending Approval / Rejected)
+  const [processingQueue, setProcessingQueue] = useState<ProcessableItem[]>([]);
+  const [processedDisbursements, setProcessedDisbursements] = useState<any[]>([]);
+  const [otherRecords, setOtherRecords] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadData = async () => {
+    try {
+      const [fundRows, loans, records] = await Promise.all([
+        fetchFunds(),
+        fetchEligibleLoans(),
+        fetchDisbursementRecords()
+      ]);
+      const approved = records
+        .filter((r) => r.status === 'Approved')
+        .map((r) => ({ ...r, disbursementId: r.id }));
+      setFunds(fundRows);
+      setProcessingQueue([...approved, ...loans]);
+      setProcessedDisbursements(records.filter((r) => r.status === 'Disbursed'));
+      setOtherRecords(records.filter((r) => r.status === 'Pending Approval' || r.status === 'Rejected'));
+    } catch (e: any) {
+      showToast(e.message || 'Failed to load disbursement data', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   // Modals state
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -231,28 +136,34 @@ export default function TreasurerDisbursementProcessingPage() {
     setIsFormModalOpen(true);
   };
 
+  // After a Loan Release request is submitted for Admin approval
+  const handleRequestSubmitted = (created: any) => {
+    showToast(
+      `Request ${created?.disbursementRefNo || ''} submitted for Admin approval.`.replace('  ', ' '),
+      'success'
+    );
+    loadData();
+  };
+
   // When a disbursement is finalized (Task 11, 14)
   const handleDisbursementComplete = (completedDisbursement: any) => {
-    // 1. Remove from pending queue if it was in the queue
-    if (completedDisbursement.id) {
+    if (completedDisbursement.type === 'Loan Release') {
+      // Backend executed it and deducted the fund (DMP-011): reload funds, queue and history.
+      loadData();
+    } else {
+      // Expense / Other Authorized Release: not supported by the backend yet, kept in-memory only.
       setProcessingQueue((prev) => prev.filter((item) => item.id !== completedDisbursement.id));
+      setProcessedDisbursements((prev) => [completedDisbursement, ...prev]);
+      setFunds((prevFunds) =>
+        prevFunds.map((fund) =>
+          fund.name === completedDisbursement.fundSource
+            ? { ...fund, balance: Math.max(0, fund.balance - completedDisbursement.amount) }
+            : fund
+        )
+      );
     }
 
-    // 2. Add to processed records list
-    setProcessedDisbursements((prev) => [completedDisbursement, ...prev]);
-
-    // 3. Task 14: Deduct fund balance in real-time
-    setFunds((prevFunds) =>
-      prevFunds.map((fund) => {
-        if (fund.name === completedDisbursement.fundSource) {
-          const newBal = fund.balance - completedDisbursement.amount;
-          return { ...fund, balance: Math.max(0, newBal) };
-        }
-        return fund;
-      })
-    );
-
-    // 4. Open Task 14 Updated Balance modal
+    // Open Task 14 Updated Balance modal
     setLastFinalizedDisbursement(completedDisbursement);
     setIsSuccessModalOpen(true);
 
@@ -284,8 +195,8 @@ export default function TreasurerDisbursementProcessingPage() {
 
     if (activeTab === 'pending') return pendingWithStatus;
     if (activeTab === 'disbursed') return processedDisbursements;
-    return [...pendingWithStatus, ...processedDisbursements];
-  }, [activeTab, processingQueue, processedDisbursements]);
+    return [...pendingWithStatus, ...otherRecords, ...processedDisbursements];
+  }, [activeTab, processingQueue, processedDisbursements, otherRecords]);
 
   // Task 13: Multi-criteria filtering
   const filteredRows = useMemo(() => {
@@ -416,6 +327,18 @@ export default function TreasurerDisbursementProcessingPage() {
       return (
         <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-[10px] font-bold uppercase tracking-widest shadow-sm flex items-center gap-1 mx-auto w-fit">
           <CheckCircle2 size={11} /> Disbursed
+        </span>
+      );
+    }
+    if (status === 'Pending Approval' || status === 'Rejected') {
+      const rejected = status === 'Rejected';
+      return (
+        <span
+          className={`px-2.5 py-1 border rounded-md text-[10px] font-bold uppercase tracking-widest shadow-sm flex items-center gap-1 mx-auto w-fit ${
+            rejected ? 'bg-red-50 text-red-700 border-red-200' : 'bg-blue-50 text-blue-700 border-blue-200'
+          }`}
+        >
+          {rejected ? <AlertCircle size={11} /> : <Clock size={11} />} {status}
         </span>
       );
     }
@@ -910,7 +833,7 @@ export default function TreasurerDisbursementProcessingPage() {
                                       account: 'Verified'
                                     },
                                     method: row.paymentMethod || 'Cheque',
-                                    auditTrail: [
+                                    auditTrail: row.auditTrail || [
                                       {
                                         id: 'at-1',
                                         action: 'Funds Released & Recorded',
@@ -1009,6 +932,7 @@ export default function TreasurerDisbursementProcessingPage() {
         itemToProcess={selectedItemForProcessing}
         funds={funds}
         onDisbursementComplete={handleDisbursementComplete}
+        onRequestSubmitted={handleRequestSubmitted}
       />
 
       {/* Task 14: Updated Fund Balance Display Confirmation Modal */}

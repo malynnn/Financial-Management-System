@@ -65,12 +65,11 @@ export default function DisbursementActionModal({ isOpen, onClose, disbursement,
     try {
       const res = await fetch(`${API_BASE_URL}/disbursements/${disbursement.id}/review`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'APPROVE',
-          reviewerName,
-          reviewerRole,
-        }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': 'usr-admin-1' 
+        },
+        body: JSON.stringify({ action: 'APPROVE' }),
       });
       if (!res.ok) throw new Error('Failed to approve');
     } catch {
@@ -87,13 +86,11 @@ export default function DisbursementActionModal({ isOpen, onClose, disbursement,
     try {
       const res = await fetch(`${API_BASE_URL}/disbursements/${disbursement.id}/review`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'REJECT',
-          rejectionReason: rejectReason,
-          reviewerName,
-          reviewerRole,
-        }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': 'usr-admin-1' 
+        },
+        body: JSON.stringify({ action: 'REJECT', rejectionReason: rejectReason }),
       });
       if (!res.ok) throw new Error('Failed to reject');
     } catch {
@@ -111,12 +108,11 @@ export default function DisbursementActionModal({ isOpen, onClose, disbursement,
     try {
       const res = await fetch(`${API_BASE_URL}/disbursements/${disbursement.id}/execute`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          executionRefNo: generatedRef,
-          executorName: 'Treasurer',
-          executorRole: 'Treasurer',
-        }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': 'usr-admin-1' 
+        },
+        body: JSON.stringify({ executionRefNo: generatedRef }),
       });
       if (!res.ok) throw new Error('Failed to execute');
     } catch {

@@ -44,12 +44,17 @@ body {
   100% { background-position: 200% 0; }
 }
 
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
 .animate-modal-enter {
   animation: modal-fade-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-fade-in {
-  animation: modal-fade-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fade-in 0.25s ease-out forwards;
 }
 
 .animate-slide-up {

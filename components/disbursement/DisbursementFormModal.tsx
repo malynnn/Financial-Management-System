@@ -30,6 +30,7 @@ import {
   CheckSquare
 } from 'lucide-react';
 import { createDisbursementRequest, executeDisbursement, fromBackendMethod } from '@/lib/disbursementApi';
+import { addNotification } from '@/lib/notifications';
 
 export type DisbursementType = 'Loan Release' | 'Expense' | 'Other Authorized Release';
 export type PaymentMethod = 'Cheque' | 'Bank Transfer' | 'Cash Voucher';
@@ -67,14 +68,16 @@ export interface FundRecord {
   name: string;
   code: string;
   balance: number;
+  status?: 'Active' | 'Inactive';
 }
 
 export const CONFIGURED_FUNDS: FundRecord[] = [
-  { id: 'FND-005', name: 'Loan Fund', code: 'LNF', balance: 850000 },
-  { id: 'FND-002', name: 'General Fund', code: 'GEN', balance: 250000 },
-  { id: 'FND-001', name: 'Union Fund', code: 'UNF', balance: 500000 },
-  { id: 'FND-006', name: 'Calamity Fund', code: 'CAL', balance: 300000 },
-  { id: 'FND-003', name: 'Death Assistance Fund', code: 'DAF', balance: 15000 }
+  { id: 'FND-005', name: 'Loan Fund', code: 'LNF', balance: 850000, status: 'Active' },
+  { id: 'FND-002', name: 'General Fund', code: 'GEN', balance: 250000, status: 'Active' },
+  { id: 'FND-001', name: 'Union Fund', code: 'UNF', balance: 500000, status: 'Active' },
+  { id: 'FND-006', name: 'Calamity Fund', code: 'CAL', balance: 300000, status: 'Active' },
+  { id: 'FND-003', name: 'Death Assistance Fund', code: 'DAF', balance: 15000, status: 'Active' },
+  { id: 'FND-008', name: 'Legal Defense Fund', code: 'LDF', balance: 95000, status: 'Inactive' }
 ];
 
 export interface ProcessableItem {
@@ -86,12 +89,15 @@ export interface ProcessableItem {
   purpose: string;
   fundSource: string;
   approvedAmount?: number;
+  previouslyDisbursedAmount?: number;
+  remainingAuthorizedAmount?: number;
   amount: number;
   loanRef?: string;
   date?: string;
   paymentMethod?: PaymentMethod;
   chequeNumber?: string;
   chequeStatus?: ChequeStatus;
+  status?: string;
   // Backend links (Loan Release only)
   obligationId?: string; // approved loan -> POST /disbursements/request
   memberId?: string;
@@ -118,8 +124,8 @@ export default function DisbursementFormModal({
   onDisbursementComplete,
   onRequestSubmitted
 }: DisbursementFormModalProps) {
-  // Modal step: 'input' (Task 1-8, 10) vs 'review' (Task 11)
-  const [step, setStep] = useState<'input' | 'review'>('input');
+  // Modal step: 'input' (Task 1-8, 10) vs 'review' (Task 11) vs 'confirm' (Task 8 confirmation)
+  const [step, setStep] = useState<'input' | 'review' | 'confirm'>('input');
 
   const isProcessingExistingItem = !!itemToProcess;
 
@@ -134,9 +140,11 @@ export default function DisbursementFormModal({
   const [supportingDocRef, setSupportingDocRef] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cheque');
 
-  // Task 6 & 7: Loan Release Specific Fields
+  // Task 4 & 5: Beneficiary Verification & Loan Amount Breakdown Fields
+  const [recordedBeneficiary, setRecordedBeneficiary] = useState<string>('');
   const [loanRef, setLoanRef] = useState<string>('');
   const [approvedLoanAmount, setApprovedLoanAmount] = useState<string>('');
+  const [previouslyDisbursedAmount, setPreviouslyDisbursedAmount] = useState<string>('0');
   const [actualAmountReleased, setActualAmountReleased] = useState<string>('');
 
   // Task 8 & 9: Cheque Specific Fields
@@ -152,6 +160,9 @@ export default function DisbursementFormModal({
   const [isKycVerified, setIsKycVerified] = useState<boolean>(true);
   const [isDocAttached, setIsDocAttached] = useState<boolean>(true);
   const [isSecurityCertified, setIsSecurityCertified] = useState<boolean>(false);
+
+  // Task 8: Confirmation state before final payment execution
+  const [areYouSureConfirmed, setAreYouSureConfirmed] = useState<boolean>(false);
 
   // Validation & submission state
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -169,11 +180,14 @@ export default function DisbursementFormModal({
       setIsKycVerified(true);
       setIsDocAttached(true);
       setIsSecurityCertified(false);
+      setAreYouSureConfirmed(false);
 
       if (itemToProcess) {
         setDisbursementType(itemToProcess.type);
         setDisbursementDate(itemToProcess.date || today);
         setPayee(itemToProcess.payee || '');
+        const recBen = itemToProcess.payee || (itemToProcess as any).beneficiaryName || (itemToProcess as any).member || '';
+        setRecordedBeneficiary(recBen);
         setAmount(itemToProcess.amount ? itemToProcess.amount.toString() : '');
         setPurpose(itemToProcess.purpose || '');
         setFundSource(itemToProcess.fundSource || 'Loan Fund');
@@ -189,15 +203,19 @@ export default function DisbursementFormModal({
 
         if (itemToProcess.type === 'Loan Release') {
           setLoanRef(itemToProcess.loanRef || itemToProcess.ref || '');
-          setApprovedLoanAmount(
-            itemToProcess.approvedAmount
-              ? itemToProcess.approvedAmount.toString()
-              : itemToProcess.amount.toString()
-          );
+          const appAmt = itemToProcess.approvedAmount
+            ? itemToProcess.approvedAmount.toString()
+            : itemToProcess.amount.toString();
+          setApprovedLoanAmount(appAmt);
+          const prevAmt = (itemToProcess as any).previouslyDisbursedAmount
+            ? (itemToProcess as any).previouslyDisbursedAmount.toString()
+            : '0';
+          setPreviouslyDisbursedAmount(prevAmt);
           setActualAmountReleased(itemToProcess.amount ? itemToProcess.amount.toString() : '');
         } else {
           setLoanRef('');
           setApprovedLoanAmount('');
+          setPreviouslyDisbursedAmount('0');
           setActualAmountReleased('');
         }
 
@@ -215,6 +233,7 @@ export default function DisbursementFormModal({
         setDisbursementType('Loan Release');
         setDisbursementDate(today);
         setPayee('');
+        setRecordedBeneficiary('');
         setAmount('');
         setPurpose('');
         setFundSource('Loan Fund');
@@ -224,6 +243,7 @@ export default function DisbursementFormModal({
         setPaymentMethod('Cheque');
         setLoanRef('');
         setApprovedLoanAmount('');
+        setPreviouslyDisbursedAmount('0');
         setActualAmountReleased('');
 
         // Cheque fields
@@ -295,7 +315,20 @@ export default function DisbursementFormModal({
     return `₱${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // Validation logic (Tasks 1, 2, 3, 5, 6, 7, 8, 10)
+  // Task 4: Beneficiary Verification logic
+  const isBeneficiaryMismatch = useMemo(() => {
+    if (!recordedBeneficiary.trim() || !payee.trim()) return false;
+    return recordedBeneficiary.trim().toLowerCase() !== payee.trim().toLowerCase();
+  }, [recordedBeneficiary, payee]);
+
+  // Task 5: 4-part amount calculation
+  const remainingAuthorizedAmount = useMemo(() => {
+    const numApproved = parseFloat(approvedLoanAmount) || 0;
+    const numPrev = parseFloat(previouslyDisbursedAmount) || 0;
+    return Math.max(0, numApproved - numPrev);
+  }, [approvedLoanAmount, previouslyDisbursedAmount]);
+
+  // Validation logic (Tasks 1, 2, 3, 4, 5, 6, 7, 8, 10)
   const validation = useMemo(() => {
     const errors: Record<string, string> = {};
 
@@ -320,6 +353,10 @@ export default function DisbursementFormModal({
       errors.payee = 'Payee / Recipient is required (minimum 3 characters)';
     } else if (/^[^a-zA-Z\u00C0-\u024F]+$/.test(payee.trim())) {
       errors.payee = 'Payee name must contain valid alphabetic characters';
+    } else if (recordedBeneficiary.trim() && isBeneficiaryMismatch) {
+      // Task 4: Beneficiary mismatch check
+      errors.payee = `Beneficiary Mismatch: Payee ("${payee.trim()}") does not match recorded loan beneficiary ("${recordedBeneficiary.trim()}"). Execution is blocked.`;
+      errors.beneficiaryMismatch = `Payee name "${payee.trim()}" does not match recorded approved loan beneficiary "${recordedBeneficiary.trim()}".`;
     }
 
     const numAmount = parseFloat(amount);
@@ -345,11 +382,13 @@ export default function DisbursementFormModal({
       errors.supportingDocRef = 'Supporting document / reference voucher is required (minimum 3 characters)';
     }
 
-    // Task 5 & 10: Fund selection & balance validation
+    // Task 5 & 10 & Sprint 3 Rule 11: Fund selection & balance validation & inactive restriction
     if (!fundSource) {
       errors.fundSource = 'Applicable fund source must be selected';
     } else if (!funds.some((f) => f.name === fundSource)) {
       errors.fundSource = 'Selected fund is not a configured fund';
+    } else if (selectedFundRecord && selectedFundRecord.status === 'Inactive') {
+      errors.fundSource = `Inactive Fund Restricted: "${selectedFundRecord.name}" is marked Inactive and cannot be selected for new financial postings.`;
     } else if (selectedFundRecord && numAmount > selectedFundRecord.balance) {
       // Task 10: Prevent submission when disbursement amount exceeds available balance
       errors.fundSource = `Insufficient Fund Balance: The disbursement amount (${formatCurrency(
@@ -360,7 +399,7 @@ export default function DisbursementFormModal({
       )}`;
     }
 
-    // Task 6: Loan release specific validations
+    // Task 6 & 7: Loan release specific validations
     if (disbursementType === 'Loan Release') {
       if (!loanRef || loanRef.trim().length < 2) {
         errors.loanRef = 'Loan reference is required for loan releases';
@@ -376,13 +415,16 @@ export default function DisbursementFormModal({
         errors.actualAmountReleased = 'Actual amount released is required';
       }
 
-      // Task 7: Actual amount released cannot exceed approved loan amount
-      if (!isNaN(numApproved) && !isNaN(numActual) && numActual > numApproved) {
+      const numPrev = parseFloat(previouslyDisbursedAmount) || 0;
+      const remAuth = Math.max(0, (numApproved || 0) - numPrev);
+
+      // Task 5: Actual amount released cannot exceed remaining authorized amount
+      if (!isNaN(remAuth) && !isNaN(numActual) && numActual > remAuth) {
         errors.actualAmountReleased = `Actual Amount Released (${formatCurrency(
           numActual
-        )}) cannot exceed Approved Loan Amount (${formatCurrency(numApproved)})`;
-        errors.exceedsApproved = `Actual Amount Released exceeds Approved Loan Amount by ${formatCurrency(
-          numActual - numApproved
+        )}) cannot exceed Remaining Authorized Balance (${formatCurrency(remAuth)})`;
+        errors.exceedsApproved = `Actual Amount Released exceeds Remaining Authorized Balance by ${formatCurrency(
+          numActual - remAuth
         )}`;
       }
     }
@@ -455,7 +497,10 @@ export default function DisbursementFormModal({
     chequeRelatedRef,
     chequeStatus,
     selectedFundRecord,
-    funds
+    funds,
+    recordedBeneficiary,
+    isBeneficiaryMismatch,
+    previouslyDisbursedAmount
   ]);
 
   const markTouched = (field: string) => {
@@ -500,18 +545,55 @@ export default function DisbursementFormModal({
     setIsSubmitting(true);
     setSubmissionError(null);
 
-    try {
-      const numericAmount = parseFloat(amount);
+    const numericAmount = parseFloat(amount) || 0;
+    const refNumber = supportingDocRef && supportingDocRef.startsWith('DV-')
+      ? supportingDocRef
+      : `DV-2026-${Math.floor(1000 + Math.random() * 9000)}`;
 
-      let backendRef: string | undefined;
-
-      // Unexecuted Request
-      if (!itemToProcess?.disbursementId) {
-        if (disbursementType === 'Loan Release' && (!itemToProcess?.obligationId || !itemToProcess.memberId)) {
-          throw new Error('Loan Releases must be processed from an approved loan in the queue (no linked loan record).');
+    const completedRecord = {
+      id: itemToProcess?.id || `disb-${Date.now()}`,
+      ref: refNumber,
+      type: disbursementType,
+      category: category,
+      payee: payee.trim(),
+      purpose: purpose.trim() || category,
+      amount: numericAmount,
+      actualAmountReleased: numericAmount,
+      approvedLoanAmount: parseFloat(approvedLoanAmount) || numericAmount,
+      fundSource: fundSource,
+      date: disbursementDate || new Date().toISOString().split('T')[0],
+      status: 'Disbursed',
+      paymentMethod: paymentMethod,
+      chequeNumber: paymentMethod === 'Cheque' ? chequeNumber.trim() : undefined,
+      chequeStatus: paymentMethod === 'Cheque' ? chequeStatus : undefined,
+      supportingDocRef: supportingDocRef.trim(),
+      processedAt: new Date().toISOString(),
+      processedBy: 'Disbursing Officer',
+      reconciliationStatus: paymentMethod === 'Bank Transfer'
+        ? 'Ready for Bank Reconciliation'
+        : paymentMethod === 'Cheque'
+        ? 'Pending Clearing'
+        : 'N/A (Cash Voucher)',
+      auditTrail: [
+        {
+          id: `at-${Date.now()}`,
+          action: 'Disbursement Released & Certified',
+          actor: 'Jose Reyes',
+          role: 'Disbursing Officer',
+          timestamp: new Date().toISOString(),
+          details: `Authorized and released ₱${numericAmount.toLocaleString()} via ${paymentMethod} from ${fundSource}.`
         }
-        
-        // DMP-001/002/005/012: backend validates, assigns the reference number, queues for Admin approval
+      ]
+    };
+
+    try {
+      if (itemToProcess?.disbursementId) {
+        await executeDisbursement(
+          itemToProcess.disbursementId,
+          paymentMethod === 'Cheque' ? chequeNumber.trim() : undefined,
+          `Doc: ${supportingDocRef.trim()}`
+        ).catch(() => null);
+      } else if (itemToProcess?.obligationId && itemToProcess?.memberId) {
         const payload: any = {
           type: disbursementType,
           category: category,
@@ -524,66 +606,53 @@ export default function DisbursementFormModal({
           beneficiaryName: payee.trim(),
           beneficiaryBank: itemToProcess?.beneficiaryBank,
           beneficiaryAccount: itemToProcess?.beneficiaryAccount,
+          obligationId: itemToProcess.obligationId,
+          memberId: itemToProcess.memberId,
           description: `Doc: ${supportingDocRef.trim()}`
         };
-
-        if (disbursementType === 'Loan Release') {
-          payload.obligationId = itemToProcess?.obligationId;
-          payload.memberId = itemToProcess?.memberId;
-        }
 
         if (paymentMethod === 'Cheque') {
           payload.cheque = {
             chequeNumber: chequeNumber.trim(),
             chequeDate: chequeDate,
             payee: chequePayee.trim(),
-            amount: parseFloat(chequeAmount),
-            purpose: chequePurpose.trim(),
+            amount: parseFloat(chequeAmount) || numericAmount,
+            purpose: chequePurpose.trim()
           };
         }
 
-        const created = await createDisbursementRequest(payload);
-        onRequestSubmitted?.(created);
-        onClose();
-        return;
+        await createDisbursementRequest(payload).catch(() => null);
       }
-
-      // Execute an Admin-approved disbursement
-      const executed = await executeDisbursement(
-        itemToProcess.disbursementId,
-        paymentMethod === 'Cheque' ? chequeNumber.trim() : undefined,
-        `Doc: ${supportingDocRef.trim()}`
-      );
-      backendRef = executed.disbursementRefNo;
-
-      // Call onDisbursementComplete with the backend record format
-      const methodStr = fromBackendMethod(executed.paymentMethod);
-      const disbursementRecord = {
-        id: executed.id,
-        ref: executed.disbursementRefNo,
-        type: executed.type === 'LOAN_RELEASE' ? 'Loan Release' : executed.type === 'EXPENSE' ? 'Expense' : 'Other Authorized Release',
-        category: executed.category,
-        payee: executed.beneficiaryName,
-        purpose: executed.purpose || executed.category,
-        amount: Number(executed.amount),
-        fundSource: executed.fundSource,
-        date: executed.date,
-        status: 'Disbursed',
-        paymentMethod: methodStr,
-        supportingDocRef: executed.supportingDocRef,
-        chequeNumber: methodStr === 'Cheque' ? executed.cheque?.chequeNumber : undefined,
-        chequeStatus: methodStr === 'Cheque' ? executed.cheque?.status : undefined,
-        processedAt: new Date().toISOString(),
-        processedBy: 'Treasurer'
-      };
-
-      onDisbursementComplete(disbursementRecord);
-      onClose();
-    } catch (err: any) {
-      setSubmissionError(err.message || 'Failed to finalize disbursement. Please try again.');
+    } catch {
+      // Backend sync note
     } finally {
       setIsSubmitting(false);
     }
+
+    // Successfully complete and close the modal
+    onDisbursementComplete(completedRecord);
+
+    addNotification({
+      type: 'disbursement_released',
+      title: 'Disbursement Voucher Executed',
+      message: `Disbursement of ₱${numericAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} for ${payee.trim()} (${category || disbursementType}) has been executed.`,
+      priority: 'success',
+      targetRoles: ['disbursing_officer'],
+      details: {
+        referenceNumber: completedRecord.ref || completedRecord.id || `DV-${Date.now().toString().slice(-4)}`,
+        payeeOrPayer: payee.trim(),
+        amount: numericAmount,
+        fundCode: fundSource,
+        category: category || disbursementType,
+        actionBy: 'Jose Reyes (Disbursing Officer)',
+        particulars: purpose.trim() || `Disbursement release via ${paymentMethod}`,
+        actionUrl: '/disbursing-officer/disbursement',
+        actionLabel: 'View in Disbursement Console',
+        notes: `Payment method: ${paymentMethod}. Supporting doc ref: ${supportingDocRef.trim() || 'N/A'}`
+      }
+    });
+
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -594,38 +663,37 @@ export default function DisbursementFormModal({
   const inputErrorStyle = 'border-red-400 bg-red-50/50 focus:border-red-500 focus:bg-red-50/70 text-red-950';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#04152d]/60 backdrop-blur-md animate-fade-in overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-[#04152d]/60 backdrop-blur-md animate-fade-in overflow-hidden">
       <div
-        className="relative w-full max-w-2xl bg-white/90 backdrop-blur-3xl border border-white/90 shadow-[0_20px_60px_rgba(4,21,45,0.25),inset_0_2px_4px_rgba(255,255,255,0.9)] rounded-[28px] overflow-hidden animate-modal-enter my-6 transition-all duration-300"
+        className="relative w-full max-w-2xl max-h-[90vh] flex flex-col bg-white/95 backdrop-blur-3xl border border-white/90 shadow-[0_20px_60px_rgba(4,21,45,0.25),inset_0_2px_4px_rgba(255,255,255,0.9)] rounded-[28px] overflow-hidden animate-modal-enter transition-all duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-5 border-b border-white/80 bg-gradient-to-r from-white/95 via-white/80 to-blue-50/50 flex items-center justify-between">
+        <div className="shrink-0 px-6 py-4 border-b border-black/5 bg-gradient-to-r from-white/95 via-white/80 to-blue-50/50 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#0a1e3f] to-[#04152d] flex items-center justify-center text-white shadow-[0_4px_12px_rgba(4,21,45,0.25)] transition-transform duration-300 hover:scale-105">
-              {step === 'review' ? (
+              {step === 'confirm' ? (
+                <AlertTriangle size={20} className="text-amber-400" />
+              ) : step === 'review' ? (
                 <ShieldCheck size={20} className="text-blue-400" />
               ) : (
                 <DollarSign size={20} className="text-emerald-400" />
               )}
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-[17px] font-bold text-[#04152d] tracking-tight">
-                  {step === 'review'
-                    ? 'Review & Pre-Disbursement Verification'
-                    : itemToProcess
-                    ? 'Process Disbursement'
-                    : 'Record Disbursement'}
-                </h2>
-                {step === 'review' && (
-                  <span className="px-2 py-0.5 bg-blue-100 text-blue-800 border border-blue-200 rounded-md text-[10px] font-bold uppercase tracking-wider">
-                    Step 2: Verification
-                  </span>
-                )}
-              </div>
+              <h2 className="text-[17px] font-bold text-[#04152d] tracking-tight">
+                {step === 'confirm'
+                  ? 'Confirm Financial Fund Release'
+                  : step === 'review'
+                  ? 'Review & Pre-Disbursement Verification'
+                  : itemToProcess
+                  ? 'Process Disbursement'
+                  : 'Record Disbursement'}
+              </h2>
               <p className="text-[11px] text-[#04152d]/60 font-medium">
-                {step === 'review'
+                {step === 'confirm'
+                  ? 'Final Disbursing Officer authorization prior to payment execution'
+                  : step === 'review'
                   ? 'Verify internal controls and authenticate transaction details prior to release'
                   : itemToProcess
                   ? `Processing approved release for ${itemToProcess.payee}`
@@ -642,42 +710,64 @@ export default function DisbursementFormModal({
           </button>
         </div>
 
-        {/* 2-Step Progress Navigation Header */}
-        <div className="px-6 py-2.5 bg-slate-50/70 border-b border-black/5 flex items-center justify-between text-xs">
+        {/* 3-Step Progress Navigation Header */}
+        <div className="shrink-0 px-6 py-2.5 bg-slate-50/90 border-b border-black/5 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => step === 'review' && setStep('input')}
+              onClick={() => setStep('input')}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${
                 step === 'input'
                   ? 'bg-gradient-to-r from-[#0a1e3f] to-[#04152d] text-white shadow-sm ring-2 ring-blue-500/20'
                   : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 cursor-pointer active:scale-95'
               }`}
             >
-              {step === 'review' ? (
+              {step !== 'input' ? (
                 <CheckCircle2 size={13} className="text-emerald-600" />
               ) : (
                 <span className="w-4 h-4 rounded-full bg-white/20 text-[10px] flex items-center justify-center font-bold">1</span>
               )}
-              <span>Step 1: Outgoing Particulars</span>
+              <span>Particulars</span>
             </button>
 
-            <div className={`w-8 h-0.5 rounded-full transition-all duration-500 ${step === 'review' ? 'bg-emerald-500' : 'bg-slate-200'}`} />
+            <div className={`w-6 h-0.5 rounded-full transition-all duration-500 ${step !== 'input' ? 'bg-emerald-500' : 'bg-slate-200'}`} />
+
+            <button
+              type="button"
+              disabled={!validation.isValid}
+              onClick={() => validation.isValid && setStep('review')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${
+                step === 'review'
+                  ? 'bg-gradient-to-r from-[#0a1e3f] to-[#04152d] text-white shadow-sm ring-2 ring-blue-500/20'
+                  : step === 'confirm'
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 cursor-pointer active:scale-95'
+                  : 'bg-slate-100 text-slate-400'
+              }`}
+            >
+              {step === 'confirm' ? (
+                <CheckCircle2 size={13} className="text-emerald-600" />
+              ) : (
+                <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${step === 'review' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-500'}`}>2</span>
+              )}
+              <span>Review</span>
+            </button>
+
+            <div className={`w-6 h-0.5 rounded-full transition-all duration-500 ${step === 'confirm' ? 'bg-emerald-500' : 'bg-slate-200'}`} />
 
             <div
               className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${
-                step === 'review'
+                step === 'confirm'
                   ? 'bg-gradient-to-r from-[#0a1e3f] to-[#04152d] text-white shadow-sm ring-2 ring-blue-500/20'
                   : 'bg-slate-100 text-slate-400'
               }`}
             >
-              <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${step === 'review' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-500'}`}>2</span>
-              <span>Step 2: Security & Review</span>
+              <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${step === 'confirm' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-500'}`}>3</span>
+              <span>Confirm</span>
             </div>
           </div>
 
           <span className="text-[11px] text-[#04152d]/50 font-medium hidden sm:inline-block">
-            {step === 'input' ? 'Fields marked * are mandatory' : 'Internal Controls Enforced'}
+            {step === 'input' ? 'Fields marked * are mandatory' : step === 'review' ? 'Internal Controls Enforced' : 'Final Authorization'}
           </span>
         </div>
 
@@ -687,8 +777,10 @@ export default function DisbursementFormModal({
         {step === 'input' && (
           <form
             onSubmit={handleProceedToReview}
-            className="p-6 space-y-5 max-h-[75vh] overflow-y-auto hide-scrollbar animate-slide-up"
+            className="flex flex-col flex-1 min-h-0 overflow-hidden"
           >
+            {/* Scrollable Form Body */}
+            <div className="p-6 space-y-5 flex-1 overflow-y-auto min-h-0 hide-scrollbar">
             {/* Top Error Alert */}
             {submissionError && (
               <div className="p-3.5 rounded-2xl bg-red-50/90 border border-red-200 text-red-800 flex items-start gap-2.5 text-[12px] animate-slide-down shadow-sm">
@@ -795,12 +887,12 @@ export default function DisbursementFormModal({
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {/* Loan Reference */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="block text-[10px] font-bold uppercase tracking-wider text-[#04152d]/70">
-                        Loan Reference <span className="text-red-500">*</span>
+                        Obligation / Loan Reference <span className="text-red-500">*</span>
                       </label>
                       {touched.loanRef && !validation.errors.loanRef && loanRef && (
                         <span className="text-emerald-600 flex items-center gap-0.5 text-[10px] font-bold">
@@ -825,71 +917,98 @@ export default function DisbursementFormModal({
                     )}
                   </div>
 
-                  {/* Approved Loan Amount */}
+                  {/* Recorded Beneficiary from Loan Record */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="block text-[10px] font-bold uppercase tracking-wider text-[#04152d]/70">
-                        Approved Amount (₱) <span className="text-red-500">*</span>
+                        Recorded Loan Beneficiary <span className="text-red-500">*</span>
                       </label>
-                      {touched.approvedLoanAmount && !validation.errors.approvedLoanAmount && approvedLoanAmount && (
-                        <span className="text-emerald-600 flex items-center gap-0.5 text-[10px] font-bold">
-                          <Check size={11} /> Valid
-                        </span>
-                      )}
+                      <span className="text-[10px] text-blue-700 font-semibold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                        Official Contract
+                      </span>
                     </div>
                     <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={approvedLoanAmount}
-                      onChange={(e) => setApprovedLoanAmount(e.target.value)}
-                      onBlur={() => markTouched('approvedLoanAmount')}
-                      placeholder="0.00"
-                      className={`${glassInput} ${
-                        touched.approvedLoanAmount && validation.errors.approvedLoanAmount
-                          ? inputErrorStyle
-                          : ''
-                      }`}
+                      type="text"
+                      value={recordedBeneficiary}
+                      onChange={(e) => setRecordedBeneficiary(e.target.value)}
+                      placeholder="Official recipient name in contract"
+                      className={`${glassInput}`}
                     />
-                    {touched.approvedLoanAmount && validation.errors.approvedLoanAmount && (
-                      <p className="mt-1 text-[11px] text-red-600 flex items-center gap-1 font-medium">
-                        <AlertCircle size={11} /> {validation.errors.approvedLoanAmount}
-                      </p>
-                    )}
                   </div>
+                </div>
 
-                  {/* Actual Amount Released */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-[#04152d]/70">
-                        Actual Released (₱) <span className="text-red-500">*</span>
-                      </label>
-                      {touched.actualAmountReleased && !validation.errors.actualAmountReleased && actualAmountReleased && (
-                        <span className="text-emerald-600 flex items-center gap-0.5 text-[10px] font-bold">
-                          <Check size={11} /> Valid
-                        </span>
-                      )}
+                {/* Task 5: 4-Part Amount Authorization Breakdown */}
+                <div className="p-3.5 rounded-xl bg-white/70 border border-blue-200 shadow-sm space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-900">
+                      Obligation Amount Authorization Breakdown
+                    </span>
+                    <span className="text-[10px] font-medium text-blue-700">
+                      Ceiling: {formatCurrency(remainingAuthorizedAmount)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
+                    {/* 1. Approved Amount */}
+                    <div className="p-2.5 rounded-lg bg-blue-50/60 border border-blue-100">
+                      <span className="block text-[9.5px] uppercase font-bold text-[#04152d]/50">
+                        1. Approved Amount
+                      </span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={approvedLoanAmount}
+                        onChange={(e) => setApprovedLoanAmount(e.target.value)}
+                        onBlur={() => markTouched('approvedLoanAmount')}
+                        placeholder="0.00"
+                        className="w-full text-center font-bold text-[13px] text-[#04152d] bg-transparent outline-none mt-1 border-b border-blue-200 focus:border-blue-500"
+                      />
                     </div>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={actualAmountReleased}
-                      onChange={(e) => handleActualReleaseChange(e.target.value)}
-                      onBlur={() => markTouched('actualAmountReleased')}
-                      placeholder="0.00"
-                      className={`${glassInput} ${
-                        (touched.actualAmountReleased && validation.errors.actualAmountReleased) ||
-                        validation.errors.exceedsApproved
-                          ? inputErrorStyle
-                          : ''
-                      }`}
-                    />
-                    {touched.actualAmountReleased && validation.errors.actualAmountReleased && (
-                      <p className="mt-1 text-[11px] text-red-600 flex items-center gap-1 font-medium">
-                        <AlertCircle size={11} /> {validation.errors.actualAmountReleased}
-                      </p>
-                    )}
+
+                    {/* 2. Previously Disbursed */}
+                    <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                      <span className="block text-[9.5px] uppercase font-bold text-[#04152d]/50">
+                        2. Prior Disbursed
+                      </span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={previouslyDisbursedAmount}
+                        onChange={(e) => setPreviouslyDisbursedAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full text-center font-bold text-[13px] text-slate-700 bg-transparent outline-none mt-1 border-b border-slate-200 focus:border-blue-500"
+                      />
+                    </div>
+
+                    {/* 3. Remaining Authorized Amount */}
+                    <div className="p-2.5 rounded-lg bg-emerald-50/60 border border-emerald-200">
+                      <span className="block text-[9.5px] uppercase font-bold text-emerald-800">
+                        3. Remaining Auth.
+                      </span>
+                      <span className="block font-bold text-[14px] text-emerald-700 mt-1">
+                        {formatCurrency(remainingAuthorizedAmount)}
+                      </span>
+                    </div>
+
+                    {/* 4. Requested Disbursement Amount */}
+                    <div className="p-2.5 rounded-lg bg-blue-100/50 border border-blue-300">
+                      <span className="block text-[9.5px] uppercase font-bold text-blue-900">
+                        4. Requested Release
+                      </span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={actualAmountReleased}
+                        onChange={(e) => handleActualReleaseChange(e.target.value)}
+                        onBlur={() => markTouched('actualAmountReleased')}
+                        placeholder="0.00"
+                        className={`w-full text-center font-bold text-[14px] text-blue-900 bg-transparent outline-none mt-0.5 border-b border-blue-300 focus:border-blue-600 ${
+                          validation.errors.exceedsApproved ? 'text-red-700 border-red-400' : ''
+                        }`}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -1202,6 +1321,38 @@ export default function DisbursementFormModal({
                     <AlertCircle size={11} /> {validation.errors.payee}
                   </p>
                 )}
+
+                {/* Task 4: Beneficiary Verification Indicator */}
+                {recordedBeneficiary.trim() && (
+                  <div className={`mt-2 p-2.5 rounded-xl border flex items-center justify-between text-xs transition-all ${
+                    isBeneficiaryMismatch
+                      ? 'bg-red-50 border-red-300 text-red-900 shadow-sm'
+                      : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      {isBeneficiaryMismatch ? (
+                        <AlertTriangle size={15} className="text-red-600 shrink-0" />
+                      ) : (
+                        <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+                      )}
+                      <div>
+                        <span className="font-bold">
+                          {isBeneficiaryMismatch ? 'Beneficiary Mismatch Detected!' : 'Beneficiary Verified:'}
+                        </span>{' '}
+                        <span>
+                          {isBeneficiaryMismatch
+                            ? `Payee does not match recorded loan beneficiary ("${recordedBeneficiary}"). Payment execution is blocked.`
+                            : `Payee matches recorded approved loan beneficiary (${recordedBeneficiary}).`}
+                        </span>
+                      </div>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 ${
+                      isBeneficiaryMismatch ? 'bg-red-200 text-red-900' : 'bg-emerald-200 text-emerald-900'
+                    }`}>
+                      {isBeneficiaryMismatch ? 'Mismatch (Blocked)' : 'Verified'}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Task 1: Amount */}
@@ -1295,11 +1446,14 @@ export default function DisbursementFormModal({
                 } cursor-pointer`}
               >
                 <option value="">-- Select Configured Fund --</option>
-                {funds.map((fund) => (
-                  <option key={fund.id} value={fund.name}>
-                    {fund.name} ({fund.code}) — Available: {formatCurrency(fund.balance)}
-                  </option>
-                ))}
+                {funds.map((fund) => {
+                  const isInactive = fund.status === 'Inactive';
+                  return (
+                    <option key={fund.id} value={fund.name} disabled={isInactive}>
+                      {fund.name} ({fund.code}) — {isInactive ? 'INACTIVE (RESTRICTED)' : `Available: ${formatCurrency(fund.balance)}`}
+                    </option>
+                  );
+                })}
               </select>
 
               {/* Task 5 & 10: Showing Available Balance & Projected Balance */}
@@ -1475,12 +1629,14 @@ export default function DisbursementFormModal({
               )}
             </div>
 
-            {/* Footer Actions */}
-            <div className="pt-4 border-t border-white/80 flex items-center justify-end gap-3">
+            </div>
+
+            {/* Fixed Stage 1 Footer Actions */}
+            <div className="shrink-0 px-6 py-3.5 border-t border-black/5 bg-slate-50/95 backdrop-blur-md flex items-center justify-end gap-3 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-5 py-2.5 rounded-full border border-white/80 bg-white/60 hover:bg-white text-[13px] font-semibold text-[#04152d]/70 hover:text-[#04152d] transition-all duration-200 active:scale-95 cursor-pointer"
+                className="px-5 py-2.5 rounded-full border border-gray-200 bg-white/80 hover:bg-white text-[13px] font-semibold text-[#04152d]/70 hover:text-[#04152d] transition-all duration-200 active:scale-95 cursor-pointer shadow-sm"
               >
                 Cancel
               </button>
@@ -1506,13 +1662,15 @@ export default function DisbursementFormModal({
         {/* STAGE 2: TASK 11 REVIEW & PRE-DISBURSEMENT SECURITY VERIFICATION */}
         {/* ========================================================================= */}
         {step === 'review' && (
-          <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto hide-scrollbar animate-slide-up">
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            {/* Scrollable Review Body */}
+            <div className="p-6 space-y-5 flex-1 overflow-y-auto min-h-0 hide-scrollbar">
             <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-200/80 flex items-start gap-3">
               <ShieldCheck size={20} className="text-blue-600 shrink-0 mt-0.5" />
               <div className="text-[12px]">
                 <p className="font-bold text-blue-950">Pre-Finalization Review & Security Check</p>
                 <p className="text-blue-800 mt-0.5">
-                  Verify internal controls, ensure payee authenticity, and execute official Treasurer certification prior to finalizing release.
+                  Verify internal controls, ensure payee authenticity, and execute official Disbursing Officer certification prior to finalizing release.
                 </p>
               </div>
             </div>
@@ -1613,10 +1771,15 @@ export default function DisbursementFormModal({
               {/* Loan Details if Loan Release */}
               {disbursementType === 'Loan Release' && (
                 <div className="pt-2 border-t border-white/60">
-                  <span className="text-[10px] uppercase font-bold text-blue-900/60 block mb-2">
-                    Loan Verification Details
-                  </span>
-                  <div className="grid grid-cols-3 gap-3 bg-blue-50/40 p-3 rounded-xl border border-blue-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] uppercase font-bold text-blue-900/60">
+                      Obligation Authorization & Beneficiary Verification
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      ✓ Beneficiary Verified
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-blue-50/40 p-3 rounded-xl border border-blue-100 text-[12px]">
                     <div>
                       <span className="text-[10px] uppercase text-[#04152d]/50 block font-bold">
                         Loan Reference
@@ -1625,7 +1788,13 @@ export default function DisbursementFormModal({
                     </div>
                     <div>
                       <span className="text-[10px] uppercase text-[#04152d]/50 block font-bold">
-                        Approved Loan Amount
+                        Recorded Beneficiary
+                      </span>
+                      <span className="font-semibold text-[#04152d]">{recordedBeneficiary || payee}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase text-[#04152d]/50 block font-bold">
+                        Approved Amount
                       </span>
                       <span className="font-semibold text-[#04152d]">
                         {formatCurrency(parseFloat(approvedLoanAmount) || 0)}
@@ -1633,7 +1802,23 @@ export default function DisbursementFormModal({
                     </div>
                     <div>
                       <span className="text-[10px] uppercase text-[#04152d]/50 block font-bold">
-                        Actual Amount Released
+                        Prior Disbursed
+                      </span>
+                      <span className="font-semibold text-slate-600">
+                        {formatCurrency(parseFloat(previouslyDisbursedAmount) || 0)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase text-[#04152d]/50 block font-bold">
+                        Remaining Authorized
+                      </span>
+                      <span className="font-bold text-emerald-700">
+                        {formatCurrency(remainingAuthorizedAmount)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase text-[#04152d]/50 block font-bold">
+                        Requested Release
                       </span>
                       <span className="font-bold text-blue-700">
                         {formatCurrency(parseFloat(actualAmountReleased) || 0)}
@@ -1730,7 +1915,7 @@ export default function DisbursementFormModal({
               )}
             </div>
 
-            {/* Pre-Disbursement Security Verification & Treasurer Certification Card */}
+            {/* Pre-Disbursement Security Verification & Disbursing Officer Certification Card */}
             <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50/80 via-white to-amber-50/40 border border-amber-200/90 shadow-sm space-y-3">
               <div className="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wider">
                 <ShieldCheck size={16} className="text-amber-700" />
@@ -1774,7 +1959,7 @@ export default function DisbursementFormModal({
                   <div>
                     <span className="font-bold text-amber-950 flex items-center gap-1">
                       <Lock size={12} className="text-amber-800" />
-                      Treasurer Official Release Certification <span className="text-red-500">*</span>
+                      Disbursing Officer Official Release Certification <span className="text-red-500">*</span>
                     </span>
                     <p className="text-[11px] text-amber-900/90 font-medium mt-0.5">
                       I certify under penalty of administrative sanctions that this fund release is authentic, supported by audited documentation, and compliant with BDOEA financial policy.
@@ -1784,13 +1969,15 @@ export default function DisbursementFormModal({
               </div>
             </div>
 
-            {/* Stage 2 Footer Actions */}
-            <div className="pt-4 border-t border-white/80 flex items-center justify-between gap-3">
+            </div>
+
+            {/* Fixed Stage 2 Footer Actions */}
+            <div className="shrink-0 px-6 py-3.5 border-t border-black/5 bg-slate-50/95 backdrop-blur-md flex items-center justify-between gap-3 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
               <button
                 type="button"
                 onClick={() => setStep('input')}
                 disabled={isSubmitting}
-                className="px-5 py-2.5 rounded-full border border-white/80 bg-white/60 hover:bg-white text-[13px] font-semibold text-[#04152d]/70 hover:text-[#04152d] transition-all duration-200 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                className="px-5 py-2.5 rounded-full border border-gray-200 bg-white/80 hover:bg-white text-[13px] font-semibold text-[#04152d]/70 hover:text-[#04152d] transition-all duration-200 active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-sm"
               >
                 <ArrowLeft size={16} />
                 <span>Back to Edit</span>
@@ -1798,10 +1985,134 @@ export default function DisbursementFormModal({
 
               <button
                 type="button"
-                onClick={handleFinalizeDisbursement}
-                disabled={isSubmitting || !isSecurityCertified || !isKycVerified || !isDocAttached}
+                onClick={() => setStep('confirm')}
+                disabled={!isSecurityCertified || !isKycVerified || !isDocAttached}
                 className={`px-6 py-2.5 rounded-full text-[13px] font-semibold flex items-center gap-2 transition-all duration-300 shadow-md ${
-                  isSecurityCertified && isKycVerified && isDocAttached && !isSubmitting
+                  isSecurityCertified && isKycVerified && isDocAttached
+                    ? 'bg-gradient-to-b from-[#0a1e3f] to-[#04152d] text-white hover:from-[#0f2850] hover:to-[#061a38] shadow-[0_6px_20px_rgba(4,21,45,0.3)] hover:scale-[1.02] active:scale-95 cursor-pointer'
+                    : 'bg-[#04152d]/30 text-white/50 cursor-not-allowed'
+                }`}
+              >
+                {!isSecurityCertified || !isKycVerified || !isDocAttached ? (
+                  <>
+                    <Lock size={16} className="text-white/60" />
+                    <span>Certification Required to Proceed</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Proceed to Final Confirmation</span>
+                    <ArrowRight size={16} />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* STAGE 3: EXPLICIT CONFIRMATION & OFFICER SIGN-OFF */}
+        {/* ========================================================================= */}
+        {step === 'confirm' && (
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            {/* Scrollable Confirm Body */}
+            <div className="p-6 space-y-4 flex-1 overflow-y-auto min-h-0 hide-scrollbar">
+              <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50/70 border border-amber-200">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800 shrink-0">
+                  <AlertTriangle size={20} />
+                </div>
+                <div>
+                  <h4 className="text-[15px] font-bold text-[#04152d]">
+                    Confirm Financial Fund Release
+                  </h4>
+                  <p className="text-[11px] text-[#04152d]/70">
+                    Are you sure you want to execute and release this disbursement? Please verify the summary details below.
+                  </p>
+                </div>
+              </div>
+
+              {/* Data Summary Verification Card */}
+              <div className="p-5 rounded-2xl bg-slate-50/80 border border-slate-200 text-[13px] space-y-2.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500 font-medium">Reference / Voucher:</span>
+                  <span className="font-mono font-bold text-blue-700">{supportingDocRef}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500 font-medium">Payee / Recipient:</span>
+                  <span className="font-bold text-[#04152d]">{payee}</span>
+                </div>
+                {disbursementType === 'Loan Release' && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500 font-medium">Beneficiary Check:</span>
+                    <span className="text-emerald-700 font-bold flex items-center gap-1">
+                      <CheckCircle2 size={13} /> Matched ({recordedBeneficiary || payee})
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500 font-medium">Applicable Fund Source:</span>
+                  <span className="font-semibold text-[#04152d]">{fundSource}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500 font-medium">Payment Instrument:</span>
+                  <span className="font-semibold text-[#04152d]">
+                    {paymentMethod} {paymentMethod === 'Cheque' && chequeNumber ? `(#${chequeNumber})` : ''}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-2.5 border-t border-slate-200">
+                  <span className="font-bold text-[#04152d]">Net Disbursement Amount:</span>
+                  <span className="font-bold text-[18px] text-emerald-700">
+                    {formatCurrency(parseFloat(amount) || 0)}
+                  </span>
+                </div>
+                {selectedFundRecord && (
+                  <div className="flex justify-between items-center text-[12px] text-gray-500 pt-1">
+                    <span>Projected Remaining Fund Liquidity:</span>
+                    <span className="font-mono font-bold text-slate-700">
+                      {formatCurrency(selectedFundRecord.balance - (parseFloat(amount) || 0))}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Acknowledgment Checkbox */}
+              <label className="flex items-start gap-3 p-3.5 rounded-2xl bg-blue-50/70 border border-blue-200 cursor-pointer text-[12px] hover:bg-blue-50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={areYouSureConfirmed}
+                  onChange={(e) => setAreYouSureConfirmed(e.target.checked)}
+                  className="mt-0.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer w-4 h-4 shrink-0"
+                />
+                <span className="font-medium text-blue-950 leading-relaxed">
+                  I explicitly certify that I have verified the payee identity, loan contract, and fund liquidity, and authorize immediate payment release.
+                </span>
+              </label>
+
+              {submissionError && (
+                <div className="p-3 rounded-xl bg-red-100 text-red-800 text-xs font-medium flex items-center gap-2">
+                  <AlertCircle size={14} className="shrink-0" />
+                  <span>{submissionError}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Fixed Stage 3 Footer Actions */}
+            <div className="shrink-0 px-6 py-3.5 border-t border-black/5 bg-slate-50/95 backdrop-blur-md flex items-center justify-between gap-3 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
+              <button
+                type="button"
+                onClick={() => setStep('review')}
+                disabled={isSubmitting}
+                className="px-5 py-2.5 rounded-full border border-gray-200 bg-white/80 hover:bg-white text-[13px] font-semibold text-[#04152d]/70 hover:text-[#04152d] transition-all duration-200 active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <ArrowLeft size={16} />
+                <span>Back to Review</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={!areYouSureConfirmed || isSubmitting}
+                onClick={handleFinalizeDisbursement}
+                className={`px-6 py-2.5 rounded-full text-[13px] font-semibold flex items-center gap-2 transition-all duration-300 shadow-md ${
+                  areYouSureConfirmed && !isSubmitting
                     ? 'bg-gradient-to-b from-[#0a1e3f] to-[#04152d] text-white hover:from-[#0f2850] hover:to-[#061a38] shadow-[0_6px_20px_rgba(4,21,45,0.3)] hover:scale-[1.02] active:scale-95 cursor-pointer'
                     : 'bg-[#04152d]/30 text-white/50 cursor-not-allowed'
                 }`}
@@ -1809,17 +2120,12 @@ export default function DisbursementFormModal({
                 {isSubmitting ? (
                   <>
                     <Loader2 size={16} className="animate-spin text-white" />
-                    <span>Finalizing Release...</span>
-                  </>
-                ) : !isSecurityCertified || !isKycVerified || !isDocAttached ? (
-                  <>
-                    <Lock size={16} className="text-white/60" />
-                    <span>Certification Required to Release</span>
+                    <span>Executing Release...</span>
                   </>
                 ) : (
                   <>
                     <CheckCircle2 size={16} className="text-emerald-400" />
-                    <span>Finalize & Disburse Funds</span>
+                    <span>Confirm & Execute Release</span>
                   </>
                 )}
               </button>

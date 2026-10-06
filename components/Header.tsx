@@ -1,11 +1,22 @@
 'use client';
 
-import { useState, useEffect, useRef, Suspense } from 'react';
+import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { Bell, Settings, LogOut, User } from 'lucide-react';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import ActionModal from '@/components/ActionModal';
+import NotificationPanel from '@/components/notifications/NotificationPanel';
+import NotificationDetailModal from '@/components/notifications/NotificationDetailModal';
+import { 
+  getStoredNotifications, 
+  markNotificationAsRead, 
+  markAllNotificationsAsRead, 
+  deleteNotification, 
+  NOTIFICATION_EVENT, 
+  SystemNotification,
+  UserRoleKey
+} from '@/lib/notifications';
 
 interface Props {
   unreadCount?: number;
@@ -25,28 +36,43 @@ const ADMIN_TAB_TITLES: Record<string, string> = {
 };
 
 const PAGE_TITLES: Record<string, string> = {
-  '/member/dashboard':        'My Summary',
-  '/member/collections':      'Collection Processing',
-  '/treasurer/dashboard':     'Dashboard',
-  '/treasurer/collections':   'Collections',
-  '/treasurer/disbursement':  'Disbursement Processing',
-  '/treasurer/funds':         'Funds Dashboard',
-  '/treasurer/forecasting':   'Forecasting',
-  '/admin/dashboard':         'User Management',
-  '/admin/funds':             'Fund Master',
-  '/admin/settings':          'Settings',
-  '/auditor/dashboard':       'Audit Oversight',
-  '/auditor/collections':     'Collections',
-  '/auditor/disbursement':    'Disbursement Oversight',
-  '/auditor/funds':           'Fund Oversight',
-  '/profile':                 'Settings',
-  '/events':                  'Events',
-  '/documents':               'Documents',
-  '/election':                'Elections',
-  '/grievance':               'Grievances',
+  // Notifications
+  '/notifications':                       'System Notification Center',
+  // Collecting Officer routes
+  '/collecting-officer':                  'Collecting Officer Dashboard',
+  '/collecting-officer/collections':      'Collection Processing',
+  '/collecting-officer/payroll':          'Payroll Processing',
+  '/collecting-officer/funds':            'Funds Dashboard',
+  '/collecting-officer/lifespan':         'Fund Lifespan Analytics',
+  // Disbursing Officer routes
+  '/disbursing-officer':                  'Disbursing Officer Dashboard',
+  '/disbursing-officer/disbursement':     'Disbursement Processing',
+  '/disbursing-officer/funds':            'Funds Dashboard',
+  '/disbursing-officer/lifespan':         'Fund Lifespan Analytics',
+  // Admin routes
+  '/admin':                               'System Administration Dashboard',
+  '/admin/dashboard':                     'User Management',
+  '/admin/funds':                         'Fund Master',
+  '/admin/lifespan':                      'Fund Lifespan Analytics',
+  '/admin/disbursement':                  'Disbursement Processing',
+  '/admin/settings':                      'Settings',
+  // Auditor routes
+  '/auditor':                             'Auditor Oversight Dashboard',
+  '/auditor/dashboard':                   'Audit Oversight',
+  '/auditor/collections':                 'Collections Audit',
+  '/auditor/disbursement':                'Disbursement Audit',
+  '/auditor/payroll':                     'Payroll Audit',
+  '/auditor/funds':                       'Fund Oversight',
+  '/auditor/lifespan':                    'Fund Lifespan Audit',
+  // Misc
+  '/profile':                             'Settings',
+  '/events':                              'Events',
+  '/documents':                           'Documents',
+  '/election':                            'Elections',
+  '/grievance':                           'Grievances',
 };
 
-function HeaderContent({ unreadCount = 0 }: Props) {
+function HeaderContent({ unreadCount: propUnreadCount }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -59,6 +85,65 @@ function HeaderContent({ unreadCount = 0 }: Props) {
   const [greeting, setGreeting] = useState('');
   const [currentDate, setCurrentDate] = useState('');
   const [currentTime, setCurrentTime] = useState('');
+
+  const { data: session } = useSession();
+
+  let currentUserRoleKey: UserRoleKey = 'disbursing_officer';
+  if (pathname.startsWith('/collecting-officer')) {
+    currentUserRoleKey = 'collecting_officer';
+    if (typeof window !== 'undefined') localStorage.setItem('bdoea_active_role', 'collecting_officer');
+  } else if (pathname.startsWith('/disbursing-officer')) {
+    currentUserRoleKey = 'disbursing_officer';
+    if (typeof window !== 'undefined') localStorage.setItem('bdoea_active_role', 'disbursing_officer');
+  } else if (pathname.startsWith('/admin')) {
+    currentUserRoleKey = 'admin';
+    if (typeof window !== 'undefined') localStorage.setItem('bdoea_active_role', 'admin');
+  } else if (pathname.startsWith('/auditor')) {
+    currentUserRoleKey = 'auditor';
+    if (typeof window !== 'undefined') localStorage.setItem('bdoea_active_role', 'auditor');
+  } else {
+    const rawRole = (session?.user as any)?.role;
+    if (typeof rawRole === 'string') {
+      const lower = rawRole.toLowerCase().replace(/[\s-]+/g, '_');
+      if (lower.includes('collecting')) currentUserRoleKey = 'collecting_officer';
+      else if (lower.includes('disburs')) currentUserRoleKey = 'disbursing_officer';
+      else if (lower.includes('audit')) currentUserRoleKey = 'auditor';
+      else if (lower.includes('admin')) currentUserRoleKey = 'admin';
+    } else if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('bdoea_active_role');
+      if (saved === 'collecting_officer' || saved === 'disbursing_officer' || saved === 'auditor' || saved === 'admin') {
+        currentUserRoleKey = saved;
+      }
+    }
+  }
+
+  // Notifications State (persists in localStorage across role switches)
+  const [notifications, setNotifications] = useState<SystemNotification[]>([]);
+  const [selectedNotification, setSelectedNotification] = useState<SystemNotification | null>(null);
+
+  useEffect(() => {
+    const load = () => {
+      setNotifications(getStoredNotifications());
+    };
+    load();
+
+    const handleUpdate = () => load();
+    window.addEventListener(NOTIFICATION_EVENT, handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener(NOTIFICATION_EVENT, handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
+
+  const roleNotifications = useMemo(() => {
+    return notifications.filter(n => {
+      if (!n.targetRoles || n.targetRoles.length === 0) return false;
+      return n.targetRoles.includes(currentUserRoleKey);
+    });
+  }, [notifications, currentUserRoleKey]);
+
+  const unreadCount = propUnreadCount !== undefined ? propUnreadCount : roleNotifications.filter(n => !n.isRead).length;
 
   const [logoutModal, setLogoutModal] = useState<{
     isOpen: boolean;
@@ -83,7 +168,12 @@ function HeaderContent({ unreadCount = 0 }: Props) {
     return () => clearInterval(timerId);
   }, []);
 
-  let title = PAGE_TITLES[pathname] ?? 'BDOEA';
+  let title = PAGE_TITLES[pathname];
+  if (!title) {
+    const matchedPrefix = Object.keys(PAGE_TITLES).find(k => pathname.startsWith(k));
+    if (matchedPrefix) title = PAGE_TITLES[matchedPrefix];
+  }
+  if (!title) title = 'BDOEA';
 
   if (pathname === '/admin') {
     const tab = searchParams.get('tab') ?? '';
@@ -121,6 +211,33 @@ function HeaderContent({ unreadCount = 0 }: Props) {
     }, 800);
   };
 
+  const handleSelectNotification = (notif: SystemNotification) => {
+    markNotificationAsRead(notif.id);
+    setSelectedNotification({ ...notif, isRead: true });
+    setPanelOpen(false);
+  };
+
+  const handleToggleRead = (id: string) => {
+    const notif = notifications.find(n => n.id === id);
+    if (!notif) return;
+    if (notif.isRead) {
+      const updated = notifications.map(n => n.id === id ? { ...n, isRead: false } : n);
+      setNotifications(updated);
+      localStorage.setItem('bdoea_system_notifications', JSON.stringify(updated));
+      setSelectedNotification(prev => prev && prev.id === id ? { ...prev, isRead: false } : prev);
+    } else {
+      markNotificationAsRead(id);
+      setSelectedNotification(prev => prev && prev.id === id ? { ...prev, isRead: true } : prev);
+    }
+  };
+
+  const handleDeleteNotification = (id: string) => {
+    deleteNotification(id);
+    if (selectedNotification?.id === id) {
+      setSelectedNotification(null);
+    }
+  };
+
   return (
     <>
       <ActionModal
@@ -131,6 +248,15 @@ function HeaderContent({ unreadCount = 0 }: Props) {
         onConfirm={executeLogout}
         onClose={() => setLogoutModal({ isOpen: false, status: 'idle' })}
         confirmText="Sign Out"
+      />
+
+      {/* Notification Detail Modal */}
+      <NotificationDetailModal
+        isOpen={selectedNotification !== null}
+        notification={selectedNotification}
+        onClose={() => setSelectedNotification(null)}
+        onToggleRead={handleToggleRead}
+        onDelete={handleDeleteNotification}
       />
 
       <header
@@ -168,24 +294,37 @@ function HeaderContent({ unreadCount = 0 }: Props) {
             <div className="relative" ref={wrapperRef}>
               <button
                 onClick={() => setPanelOpen(o => !o)}
-                className="relative flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 border border-transparent hover:text-[#04152d] hover:bg-white/80 hover:border-white hover:shadow-[0_2px_10px_rgba(0,0,0,0.06)] transition-colors transition-shadow duration-300"
+                className={`relative flex items-center justify-center w-8 h-8 rounded-lg border transition-all duration-300 cursor-pointer ${
+                  panelOpen 
+                    ? 'bg-[#04152d] text-white border-[#04152d] shadow-sm' 
+                    : 'text-gray-500 border-transparent hover:text-[#04152d] hover:bg-white/80 hover:border-white hover:shadow-[0_2px_10px_rgba(0,0,0,0.06)]'
+                }`}
                 title="Notifications"
                 aria-label="Toggle notifications"
                 suppressHydrationWarning
               >
                 <Bell size={17} />
                 {unreadCount > 0 && (
-                  <span className="absolute top-0.5 right-0.5 bg-red-500 text-white text-[8px] font-semibold rounded-full min-w-[13px] h-3.5 flex items-center justify-center px-0.5 leading-none">
+                  <span className="absolute -top-1 -right-1 bg-rose-600 text-white text-[9px] font-extrabold rounded-full min-w-[15px] h-4 flex items-center justify-center px-1 leading-none shadow-xs border border-white animate-pulse">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
               </button>
+
+              {/* Notification Dropdown Panel */}
+              <NotificationPanel
+                isOpen={panelOpen}
+                notifications={roleNotifications}
+                onClose={() => setPanelOpen(false)}
+                onSelectNotification={handleSelectNotification}
+                onMarkAllAsRead={() => markAllNotificationsAsRead(currentUserRoleKey)}
+              />
             </div>
 
             <div className="relative" ref={settingsRef}>
               <button
                 onClick={() => setSettingsOpen(o => !o)}
-                className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 border border-transparent hover:text-[#04152d] hover:bg-white/80 hover:border-white hover:shadow-[0_2px_10px_rgba(0,0,0,0.06)] transition-colors transition-shadow duration-300"
+                className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 border border-transparent hover:text-[#04152d] hover:bg-white/80 hover:border-white hover:shadow-[0_2px_10px_rgba(0,0,0,0.06)] transition-colors transition-shadow duration-300 cursor-pointer"
                 title="Settings"
                 suppressHydrationWarning
               >
@@ -197,8 +336,15 @@ function HeaderContent({ unreadCount = 0 }: Props) {
                   <div className="px-4 py-2 border-b border-[#04152d]/10 mb-1">
                     <p className="text-[10px] font-semibold text-[#04152d]/50 uppercase tracking-widest">Account</p>
                   </div>
+                  <Link
+                    href="/notifications"
+                    onClick={() => setSettingsOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2 text-[12.5px] font-medium text-[#04152d] hover:bg-gray-50 transition-colors text-left w-full outline-none"
+                  >
+                    <Bell size={15} className="text-blue-600" /> Notifications Center
+                  </Link>
                   <div className="h-px bg-[#04152d]/10 my-1 mx-3" />
-                  <button onClick={triggerLogout} className="flex items-center gap-3 px-4 py-2.5 text-[12.5px] font-medium text-red-600 hover:bg-red-50 transition-colors text-left w-full outline-none">
+                  <button onClick={triggerLogout} className="flex items-center gap-3 px-4 py-2.5 text-[12.5px] font-medium text-red-600 hover:bg-red-50 transition-colors text-left w-full outline-none cursor-pointer">
                     <LogOut size={15} className="text-red-500" /> Sign Out
                   </button>
                 </div>

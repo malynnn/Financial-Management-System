@@ -680,7 +680,7 @@ export default function DisbursementVoucherModal({
                       <div className="border-b border-[#04152d]/60 font-black text-[#04152d] pb-0.5 text-[11px] leading-tight">
                         {disbursement.processedBy || 'Maria Santos'}
                       </div>
-                      <p className="text-[9px] font-bold text-gray-600 mt-0.5 leading-tight">Treasurer</p>
+                      <p className="text-[9px] font-bold text-gray-600 mt-0.5 leading-tight">Disbursing Officer</p>
                       <p className="text-[8px] text-gray-500 font-mono leading-tight">{disbursement.date}</p>
                     </div>
                   </div>

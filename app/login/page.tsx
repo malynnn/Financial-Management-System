@@ -5,14 +5,45 @@ export const dynamic = 'force-dynamic';
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { AlertCircle, Loader2, CheckCircle2, Lock, User, Shield, Briefcase, FileCheck, Users } from "lucide-react";
+import { 
+  AlertCircle, Loader2, CheckCircle2, Lock, User, Shield, 
+  Briefcase, FileCheck, ClipboardCheck, ArrowRight, Eye, EyeOff, KeyRound
+} from "lucide-react";
 import Image from "next/image"; 
 
 const TEST_ACCOUNTS = [
-  { label: 'Member (Juan Dela Cruz)', email: 'member@fms.com', role: 'Member', icon: Users, route: '/member/dashboard' },
-  { label: 'Treasurer (Maria Santos)', email: 'treasurer@fms.com', role: 'Treasurer', icon: Briefcase, route: '/treasurer/dashboard' },
-  { label: 'Auditor (Audit Inspector)', email: 'auditor@fms.com', role: 'Auditor', icon: FileCheck, route: '/auditor/collections' },
-  { label: 'Officer / Admin', email: 'admin@fms.com', role: 'Officer/Admin', icon: Shield, route: '/admin/funds' },
+  { 
+    label: 'Collecting Officer', 
+    email: 'collecting.officer@fms.com', 
+    role: 'Collecting Officer', 
+    icon: ClipboardCheck, 
+    route: '/collecting-officer',
+    badge: 'Collections'
+  },
+  { 
+    label: 'Disbursing Officer', 
+    email: 'disbursing.officer@fms.com', 
+    role: 'Disbursing Officer', 
+    icon: Briefcase, 
+    route: '/disbursing-officer',
+    badge: 'Disbursements'
+  },
+  { 
+    label: 'Auditor', 
+    email: 'auditor@fms.com', 
+    role: 'Auditor', 
+    icon: FileCheck, 
+    route: '/auditor',
+    badge: 'Compliance'
+  },
+  { 
+    label: 'System Admin', 
+    email: 'admin@fms.com', 
+    role: 'System Admin', 
+    icon: Shield, 
+    route: '/admin',
+    badge: 'Governance'
+  },
 ];
 
 function LoginForm() {
@@ -22,27 +53,37 @@ function LoginForm() {
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [detectedRole, setDetectedRole] = useState<string | null>(null);
 
-  const performLogin = async (loginEmail: string, loginPass: string) => {
+  const performLogin = async (loginEmail: string, loginPass: string, overrideRoute?: string) => {
     setIsLoading(true);
     setErrorMessage("");
 
     const lowerInput = loginEmail.toLowerCase();
-    let role = "Member";
-    let targetRoute = "/member/dashboard";
+    let role = "Collecting Officer";
+    let targetRoute = overrideRoute || "/collecting-officer";
 
-    if (lowerInput.includes("admin")) {
-      role = "Officer/Admin";
-      targetRoute = "/admin/funds";
-    } else if (lowerInput.includes("auditor")) {
-      role = "Auditor";
-      targetRoute = "/auditor/collections";
-    } else if (lowerInput.includes("treasurer")) {
-      role = "Treasurer";
-      targetRoute = "/treasurer/dashboard";
+    if (!overrideRoute) {
+      if (lowerInput.includes("admin") || lowerInput.includes("system")) {
+        role = "System Admin";
+        targetRoute = "/admin";
+      } else if (lowerInput.includes("auditor")) {
+        role = "Auditor";
+        targetRoute = "/auditor";
+      } else if (lowerInput.includes("disbursing") || lowerInput.includes("disbursement")) {
+        role = "Disbursing Officer";
+        targetRoute = "/disbursing-officer";
+      } else if (lowerInput.includes("collecting") || lowerInput.includes("treasurer")) {
+        role = "Collecting Officer";
+        targetRoute = "/collecting-officer";
+      }
+    } else {
+      const match = TEST_ACCOUNTS.find(a => a.route === overrideRoute);
+      if (match) role = match.role;
     }
 
     setDetectedRole(role);
@@ -64,12 +105,12 @@ function LoginForm() {
       setTimeout(() => {
         router.push(targetRoute);
         router.refresh();
-      }, 800);
+      }, 700);
     } catch {
       setTimeout(() => {
         router.push(targetRoute);
         router.refresh();
-      }, 800);
+      }, 700);
     }
   };
 
@@ -79,22 +120,27 @@ function LoginForm() {
   };
 
   const handleQuickLogin = async (acc: typeof TEST_ACCOUNTS[0]) => {
+    setSelectedRole(acc.role);
     setUsername(acc.email);
     setPassword("password123");
-    await performLogin(acc.email, "password123");
+    await performLogin(acc.email, "password123", acc.route);
   };
 
   return (
-    <div className="min-h-screen w-full flex font-sans relative overflow-hidden">
+    <div className="min-h-screen w-full flex font-sans relative overflow-hidden bg-[#04152d]">
       
       <style jsx global>{`
         @keyframes liquid-drift {
           0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(30px, -40px) scale(1.08); }
-          66% { transform: translate(-20px, 20px) scale(0.95); }
+          33% { transform: translate(35px, -45px) scale(1.08); }
+          66% { transform: translate(-25px, 25px) scale(0.94); }
         }
         .glass-blob {
-          position: absolute; border-radius: 9999px; filter: blur(100px); pointer-events: none; animation: liquid-drift 20s ease-in-out infinite;
+          position: absolute; 
+          border-radius: 9999px; 
+          filter: blur(110px); 
+          pointer-events: none; 
+          animation: liquid-drift 22s ease-in-out infinite;
         }
       `}</style>
 
@@ -110,110 +156,113 @@ function LoginForm() {
         />
       </div>
 
-      <div className="w-full lg:w-1/2 bg-[#04152d] relative flex items-center justify-center p-6 lg:p-8 z-0">
+      {/* Right Side: Clean Login Panel */}
+      <div className="w-full lg:w-1/2 relative flex items-center justify-center p-6 lg:p-10 z-0 min-h-screen">
         
+        {/* Ambient background orbs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
           <div className="glass-blob w-[500px] h-[500px] bg-blue-600/30 -top-32 -right-20" />
           <div className="glass-blob w-[450px] h-[450px] bg-yellow-400/20 top-1/4 -left-32" style={{ animationDelay: '3s' }} />
           <div className="glass-blob w-[400px] h-[400px] bg-blue-400/20 bottom-0 right-10" style={{ animationDelay: '6s' }} />
         </div>
 
-        <div className="relative z-10 bg-white/85 backdrop-blur-[50px] backdrop-saturate-[200%] border border-white w-full max-w-md rounded-[28px] p-8 lg:p-10 shadow-[0_24px_60px_rgba(0,0,0,0.4),inset_0_2px_4px_rgba(255,255,255,1)]">
+        {/* Clean Glass Card */}
+        <div className="relative z-10 w-full max-w-[420px] bg-white/90 backdrop-blur-[40px] border border-white rounded-[24px] p-8 shadow-[0_20px_50px_rgba(0,0,0,0.35)]">
           
-          <h2 className="text-[2.2rem] leading-none font-black text-[#04152d] mb-6 tracking-tight drop-shadow-sm">
+          <h2 className="text-[28px] font-black text-[#04152d] mb-5 tracking-tight">
             Log In
           </h2>
 
-          {/* error display */}
-          {(errorMessage || errorUrl) && (
-            <div className="mb-5 bg-red-50/90 backdrop-blur-md border border-red-200 text-red-700 p-3.5 rounded-[16px] flex items-start gap-2.5 text-[12.5px] font-bold animate-fade-in">
-              <AlertCircle size={16} className="shrink-0 mt-0.5 text-red-500" />
-              <p className="leading-relaxed">{errorMessage || "Authentication failed."}</p>
-            </div>
-          )}
-
-          {/* role success */}
-          {detectedRole && (
-            <div className="mb-5 bg-emerald-50/90 backdrop-blur-md border border-emerald-200 text-emerald-800 p-3.5 rounded-[16px] flex items-center gap-3 text-sm font-bold animate-fade-in">
-              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0 border border-emerald-200">
-                <CheckCircle2 size={18} className="text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-[13px] font-black text-emerald-900 tracking-tight">Authenticating Session</p>
-                <p className="text-[11px] font-bold text-emerald-700/80 mt-0.5">Active Role: <span className="font-black uppercase text-emerald-600">{detectedRole}</span></p>
-              </div>
-            </div>
-          )}
-
-          {/* role switcher buttons */}
-          <div className="mb-6 p-3 bg-blue-50/50 border border-blue-100/80 rounded-[18px]">
-            <p className="text-[10px] font-black text-blue-900/70 uppercase tracking-widest mb-2 flex items-center gap-1">
-              One Click Switch
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {TEST_ACCOUNTS.map((acc) => {
-                const Icon = acc.icon;
-                return (
-                  <button
-                    key={acc.email}
-                    type="button"
-                    disabled={isLoading || !!detectedRole}
-                    onClick={() => handleQuickLogin(acc)}
-                    className="p-2 bg-white hover:bg-blue-600 hover:text-white border border-blue-200/60 rounded-[12px] text-left transition-all duration-200 shadow-sm group active:scale-95 disabled:opacity-50"
-                  >
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <Icon size={13} className="text-blue-600 group-hover:text-white" />
-                      <span className="text-[11px] font-black tracking-tight">{acc.role}</span>
-                    </div>
-                    <p className="text-[9.5px] font-medium opacity-70 truncate">{acc.email}</p>
-                  </button>
-                );
-              })}
-            </div>
+          {/* Clean 2x2 Quick Role Selector */}
+          <div className="grid grid-cols-2 gap-2 mb-5">
+            {TEST_ACCOUNTS.map((acc) => {
+              const Icon = acc.icon;
+              const isSelected = selectedRole === acc.role;
+              return (
+                <button
+                  key={acc.email}
+                  type="button"
+                  disabled={isLoading || !!detectedRole}
+                  onClick={() => handleQuickLogin(acc)}
+                  className={`flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-[#04152d] text-white border-[#04152d]'
+                      : 'bg-gray-50/90 hover:bg-gray-100/90 text-[#04152d] border-gray-200'
+                  }`}
+                >
+                  <Icon size={16} className={isSelected ? 'text-amber-400' : 'text-[#04152d]/60'} />
+                  <span className="text-[12px] font-bold truncate">{acc.role}</span>
+                </button>
+              );
+            })}
           </div>
 
+          {/* Error notification banner */}
+          {(errorMessage || errorUrl) && (
+            <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-800 p-3 rounded-xl flex items-center gap-2 text-[12px] font-bold">
+              <AlertCircle size={15} className="shrink-0 text-rose-600" />
+              <p>{errorMessage || "Authentication failed. Please verify credentials."}</p>
+            </div>
+          )}
+
+          {/* Form */}
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-[11px] font-black text-[#04152d]/80 uppercase tracking-[0.15em] mb-1.5">Email / Employee ID</label>
+              <label className="block text-[11px] font-bold text-[#04152d]/70 uppercase tracking-wider mb-1.5">
+                Email / Employee ID
+              </label>
               <div className="relative">
-                <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#04152d]/60" />
+                <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#04152d]/40" />
                 <input
                   type="text"
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   disabled={!!detectedRole || isLoading}
-                  className="w-full pl-11 pr-4 py-3 bg-white/90 hover:bg-white backdrop-blur-xl border border-white/90 shadow-[inset_0_2px_4px_rgba(4,21,45,0.03)] rounded-[14px] text-[13px] font-bold focus:bg-white focus:shadow-[0_4px_16px_rgba(4,21,45,0.08)] outline-none transition-all duration-300 disabled:opacity-50 text-[#04152d] placeholder:text-[#04152d]/40 placeholder:font-medium"
-                  placeholder="Example: member@fms.com"
+                  className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 hover:border-gray-300 rounded-xl text-[13px] font-medium text-[#04152d] placeholder:text-[#04152d]/30 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                  placeholder="Enter email"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-[11px] font-black text-[#04152d]/80 uppercase tracking-[0.15em] mb-1.5">Password</label>
+              <label className="block text-[11px] font-bold text-[#04152d]/70 uppercase tracking-wider mb-1.5">
+                Password
+              </label>
               <div className="relative">
-                <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#04152d]/60" />
+                <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#04152d]/40" />
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={!!detectedRole || isLoading}
-                  className="w-full pl-11 pr-4 py-3 bg-white/90 hover:bg-white backdrop-blur-xl border border-white/90 shadow-[inset_0_2px_4px_rgba(4,21,45,0.03)] rounded-[14px] text-[13px] font-bold focus:bg-white focus:shadow-[0_4px_16px_rgba(4,21,45,0.08)] outline-none transition-all duration-300 disabled:opacity-50 text-[#04152d] placeholder:text-[#04152d]/40 placeholder:font-medium"
-                  placeholder="Enter any password"
+                  className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 hover:border-gray-300 rounded-xl text-[13px] font-medium text-[#04152d] placeholder:text-[#04152d]/30 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                  placeholder="Enter password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#04152d]/40 hover:text-[#04152d] transition-colors cursor-pointer"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
               </div>
             </div>
 
             <button
               type="submit"
               disabled={isLoading || !!detectedRole}
-              className="w-full bg-[#04152d] hover:bg-[#04152d]/90 text-white p-3.5 mt-4 rounded-[14px] font-black text-[13.5px] shadow-[0_8px_20px_rgba(4,21,45,0.3)] hover:-translate-y-[1px] active:translate-y-[2px] transition-all duration-300 flex justify-center items-center gap-2 disabled:opacity-70 border border-white/10 outline-none"
+              className="w-full mt-2 py-3 bg-[#04152d] hover:bg-[#071f43] text-white rounded-xl font-bold text-[13.5px] transition-all flex justify-center items-center gap-2 disabled:opacity-70 cursor-pointer shadow-xs"
             >
               {isLoading && !detectedRole ? (
-                <><Loader2 size={16} className="animate-spin" /> Verifying Credentials...</>
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Logging in...</span>
+                </>
               ) : detectedRole ? (
-                "Logging in..."
+                <span>Redirecting...</span>
               ) : (
                 "Log In"
               )}

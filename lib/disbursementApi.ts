@@ -7,15 +7,15 @@ import type {
 
 const BASE = `${API_BASE_URL}/disbursements`;
 
-// Use the active treasurer ID for the current sprint
-const MOCK_TREASURER_ID = 'usr-treasurer-1';
+// Disbursing officer authentication header for backend requests
+const MOCK_OFFICER_ID = 'usr-disbursing-officer-1';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers: { 
       'Content-Type': 'application/json',
-      'x-user-id': MOCK_TREASURER_ID,
+      'x-user-id': MOCK_OFFICER_ID,
       ...(init?.headers || {}) 
     }
   });

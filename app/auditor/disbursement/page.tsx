@@ -58,7 +58,7 @@ const MOCK_AUDIT_DISBURSEMENTS = [
         id: 'at-1',
         action: 'Disbursement Released via Cheque',
         actor: 'Maria Santos',
-        role: 'Treasurer',
+        role: 'Disbursing Officer',
         timestamp: '2026-10-04T08:15:00Z',
         details: 'Issued Cheque #CHK-2026-8801 for ₱48,500.00 from Loan Fund.'
       },
@@ -91,7 +91,7 @@ const MOCK_AUDIT_DISBURSEMENTS = [
         id: 'at-3',
         action: 'Electronic Bank Transfer Executed',
         actor: 'Maria Santos',
-        role: 'Treasurer',
+        role: 'Disbursing Officer',
         timestamp: '2026-10-03T11:20:00Z',
         details: 'Direct EFT payment executed to utility provider account.'
       }
@@ -126,7 +126,7 @@ const MOCK_AUDIT_DISBURSEMENTS = [
         id: 'at-5',
         action: 'Cheque Issued to Beneficiary',
         actor: 'Maria Santos',
-        role: 'Treasurer',
+        role: 'Disbursing Officer',
         timestamp: '2026-10-02T09:30:00Z',
         details: 'Handed official cheque to member in good standing.'
       }
@@ -154,7 +154,7 @@ const MOCK_AUDIT_DISBURSEMENTS = [
         id: 'at-6',
         action: 'Loan Disbursed via Cheque',
         actor: 'Maria Santos',
-        role: 'Treasurer',
+        role: 'Disbursing Officer',
         timestamp: '2026-10-01T15:45:00Z',
         details: 'Released ₱75,000.00 cheque following agricultural loan contract signing.'
       }
@@ -179,7 +179,7 @@ const MOCK_AUDIT_DISBURSEMENTS = [
         id: 'at-7',
         action: 'Petty Cash Voucher Disbursed',
         actor: 'Maria Santos',
-        role: 'Treasurer',
+        role: 'Disbursing Officer',
         timestamp: '2026-09-28T13:00:00Z',
         details: 'Disbursed petty cash with verified official receipt attached.'
       }
@@ -204,7 +204,7 @@ const MOCK_AUDIT_DISBURSEMENTS = [
         id: 'at-8',
         action: 'Online Payment Disbursed',
         actor: 'Maria Santos',
-        role: 'Treasurer',
+        role: 'Disbursing Officer',
         timestamp: '2026-09-27T10:15:00Z',
         details: 'Corporate bill settled through online corporate banking portal.'
       }
@@ -232,7 +232,7 @@ const MOCK_AUDIT_DISBURSEMENTS = [
         id: 'at-9',
         action: 'Cheque Marked Void Due to Stale Request',
         actor: 'Maria Santos',
-        role: 'Treasurer',
+        role: 'Disbursing Officer',
         timestamp: '2026-09-26T11:00:00Z',
         details: 'Member requested electronic bank payout instead. Cheque #CHK-2026-8710 cancelled and voided.'
       }
@@ -473,33 +473,6 @@ export default function AuditorDisbursementPage() {
           </div>
         )}
 
-        {/* Task 12: Mandatory Read-Only Auditor Banner */}
-        <div className="p-4 rounded-2xl bg-blue-900 text-white shadow-md border border-blue-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-blue-200">
-              <ShieldCheck size={22} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="font-bold text-[15px] tracking-tight">
-                  Internal Audit Oversight — Disbursement Records
-                </h2>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-white/20 text-white">
-                  Read-Only Mode
-                </span>
-              </div>
-              <p className="text-[12px] text-blue-200/90 mt-0.5">
-                All transaction-modifying controls (Record, Process, Edit, Delete) are disabled or hidden for audit compliance.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 self-end sm:self-auto">
-            <span className="px-3 py-1 rounded-full bg-white/10 text-white/90 text-[11px] font-medium flex items-center gap-1.5 border border-white/20">
-              <Lock size={12} /> Modifying Controls Disabled
-            </span>
-          </div>
-        </div>
 
         {/* Task 13: Auditor Filter Bar */}
         <div className={`${ultraGlassCard} !p-5 space-y-4`}>

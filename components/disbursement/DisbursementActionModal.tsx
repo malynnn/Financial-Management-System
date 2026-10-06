@@ -45,7 +45,7 @@ export default function DisbursementActionModal({ isOpen, onClose, disbursement,
   const [rejectReason, setRejectReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Authorization check: only Admins can approve. Treasurers can only execute.
+  // Authorization check: only Admins can approve. Disbursing Officers can execute releases.
   const isAuthorizedApprover = currentUserRole === 'Officer/Admin' || currentUserRole === 'Superadmin' || currentUserRole === 'Admin';
   const reviewerName = session?.user?.name || 'Admin Approver';
   const reviewerRole = currentUserRole || 'Officer/Admin';
@@ -248,7 +248,7 @@ export default function DisbursementActionModal({ isOpen, onClose, disbursement,
               </div>
               <h3 className="text-[18px] font-semibold text-[#04152d]">Confirm Approval</h3>
               <p className="text-[13px] font-medium text-[#04152d]/70 max-w-md mx-auto">
-                Are you sure you want to approve this disbursement request? This will authorize the Treasurer to execute the payment of {formatCurrency(disbursement.amount)}.
+                Are you sure you want to approve this disbursement request? This will authorize the Disbursing Officer to execute the payment of {formatCurrency(disbursement.amount)}.
               </p>
             </div>
           )}

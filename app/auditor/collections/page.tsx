@@ -11,10 +11,9 @@ import { API_BASE_URL } from '@/lib/config';
 const MOCK_AUDIT_COLLECTIONS = Array.from({ length: 24 }).map((_, index) => {
   const isPosted = index % 3 === 0;
 
-  let status = 'Pending';
+  let status = 'Pending Verification';
   if (isPosted) status = 'Posted';
   else if (index % 5 === 0) status = 'Rejected';
-  else if (index % 2 === 0) status = 'For Verification';
 
   const amount = 1000 + (index * 250);
 
@@ -51,15 +50,15 @@ const MOCK_AUDIT_COLLECTIONS = Array.from({ length: 24 }).map((_, index) => {
         id: `at2-${index}`,
         action: 'Verification Initiated',
         actor: 'Maria Santos',
-        role: 'Treasurer',
+        role: 'Collecting Officer',
         timestamp: new Date(Date.now() - 86400000).toISOString(),
-        details: 'Treasurer opened the record for document verification and application mapping.'
+        details: 'Collecting Officer opened the record for document verification and application mapping.'
       }] : []),
       ...(isPosted ? [{
         id: `at3-${index}`,
         action: 'Payment Posted & Reconciled',
         actor: 'Maria Santos',
-        role: 'Treasurer',
+        role: 'Collecting Officer',
         timestamp: new Date().toISOString(),
         details: `Payment of ₱${amount.toLocaleString()} was successfully applied to Annual Dues. Exception Status: Partial Payment.`
       }] : [])
@@ -93,12 +92,10 @@ export default function AuditorCollectionsPage() {
         const arr = Array.isArray(data) ? data : (data.data ?? data.items ?? []);
         if (arr.length > 0) {
           const mapped = arr.map((c: any) => {
-            let status = 'Pending';
+            let status = 'Pending Verification';
             if (c.status === 'POSTED') status = 'Posted';
             else if (c.status === 'REJECTED') status = 'Rejected';
-            else if (c.status === 'FOR_VERIFICATION') status = 'For Verification';
-            else if (c.status === 'VALIDATED') status = 'For Verification';
-            else if (c.status === 'PENDING') status = 'Pending';
+            else status = 'Pending Verification';
 
             let method = 'GCash';
             if (c.paymentMethod === 'BANK_TRANSFER') method = 'Bank Transfer';
@@ -178,8 +175,7 @@ export default function AuditorCollectionsPage() {
     switch (status) {
       case 'Posted': return <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-[10px] font-semibold uppercase tracking-widest shadow-sm">Posted</span>;
       case 'Rejected': return <span className="px-2.5 py-1 bg-red-50 text-red-700 border border-red-200 rounded-md text-[10px] font-semibold uppercase tracking-widest shadow-sm">Rejected</span>;
-      case 'For Verification': return <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-md text-[10px] font-semibold uppercase tracking-widest shadow-sm">For Verification</span>;
-      default: return <span className="px-2.5 py-1 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-md text-[10px] font-semibold uppercase tracking-widest shadow-sm">Pending</span>;
+      default: return <span className="px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-md text-[10px] font-semibold uppercase tracking-widest shadow-sm">Pending Verification</span>;
     }
   };
 
@@ -237,8 +233,7 @@ export default function AuditorCollectionsPage() {
             <div className="relative w-full sm:w-auto">
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={`${glassInput} !pl-4 appearance-none pr-10 w-full cursor-pointer`}>
                 <option value="All">All Statuses</option>
-                <option value="Pending">Pending</option>
-                <option value="For Verification">For Verification</option>
+                <option value="Pending Verification">Pending Verification</option>
                 <option value="Posted">Posted</option>
                 <option value="Rejected">Rejected</option>
               </select>

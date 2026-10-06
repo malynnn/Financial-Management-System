@@ -28,31 +28,45 @@ export async function middleware(req: NextRequest) {
 
   const rawRole = ((token.role as string) || '').toLowerCase();
 
-  // Role Guard: /member routes
-  if (pathname.startsWith('/member')) {
-    if (rawRole !== 'member' && rawRole !== 'admin' && rawRole !== 'user') {
-      // Redirect to role home
-      if (rawRole === 'treasurer') return NextResponse.redirect(new URL('/treasurer/dashboard', req.url));
-      if (rawRole === 'auditor') return NextResponse.redirect(new URL('/auditor/collections', req.url));
-      return NextResponse.redirect(new URL('/login', req.url));
+  // Helper: get home route for a role
+  const getRoleHome = (role: string): string => {
+    if (role === 'collecting_officer') return '/collecting-officer';
+    if (role === 'disbursing_officer') return '/disbursing-officer';
+    if (role === 'auditor') return '/auditor';
+    if (role === 'admin') return '/admin';
+    return '/collecting-officer';
+  };
+
+  // Legacy /treasurer/* or deprecated /member/* → redirect to /collecting-officer/collections
+  if (pathname.startsWith('/treasurer') || pathname.startsWith('/member')) {
+    return NextResponse.redirect(new URL('/collecting-officer/collections', req.url));
+  }
+
+  // Role Guard: /collecting-officer routes
+  if (pathname.startsWith('/collecting-officer')) {
+    if (rawRole !== 'collecting_officer' && rawRole !== 'admin') {
+      return NextResponse.redirect(new URL(getRoleHome(rawRole), req.url));
     }
   }
 
-  // Role Guard: /treasurer routes
-  if (pathname.startsWith('/treasurer')) {
-    if (rawRole !== 'treasurer' && rawRole !== 'admin') {
-      if (rawRole === 'member' || rawRole === 'user') return NextResponse.redirect(new URL('/member/dashboard', req.url));
-      if (rawRole === 'auditor') return NextResponse.redirect(new URL('/auditor/collections', req.url));
-      return NextResponse.redirect(new URL('/login', req.url));
+  // Role Guard: /disbursing-officer routes
+  if (pathname.startsWith('/disbursing-officer')) {
+    if (rawRole !== 'disbursing_officer' && rawRole !== 'admin') {
+      return NextResponse.redirect(new URL(getRoleHome(rawRole), req.url));
     }
   }
 
   // Role Guard: /auditor routes
   if (pathname.startsWith('/auditor')) {
     if (rawRole !== 'auditor' && rawRole !== 'admin') {
-      if (rawRole === 'member' || rawRole === 'user') return NextResponse.redirect(new URL('/member/dashboard', req.url));
-      if (rawRole === 'treasurer') return NextResponse.redirect(new URL('/treasurer/dashboard', req.url));
-      return NextResponse.redirect(new URL('/login', req.url));
+      return NextResponse.redirect(new URL(getRoleHome(rawRole), req.url));
+    }
+  }
+
+  // Role Guard: /admin routes
+  if (pathname.startsWith('/admin')) {
+    if (rawRole !== 'admin') {
+      return NextResponse.redirect(new URL(getRoleHome(rawRole), req.url));
     }
   }
 
@@ -63,6 +77,8 @@ export const config = {
   matcher: [
     '/member/:path*',
     '/treasurer/:path*',
+    '/collecting-officer/:path*',
+    '/disbursing-officer/:path*',
     '/auditor/:path*',
     '/admin/:path*',
   ],

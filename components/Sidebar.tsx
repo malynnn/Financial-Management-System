@@ -7,7 +7,7 @@ import {
   Home, Calendar, CreditCard, CircleDollarSign, Book, ChevronDown,
   PanelLeftClose, PanelLeftOpen, LayoutDashboard, WalletCards, Send,
   Briefcase, ClipboardList, PieChart, FileText, Users,
-  Settings, Activity, UploadCloud
+  Settings, Activity, UploadCloud, ClipboardCheck, Bell
 } from 'lucide-react';
 import { useSession } from "next-auth/react";
 
@@ -23,23 +23,27 @@ export default function Sidebar() {
 
   if (pathname === '/login') return null;
 
-  let currentUserRole = 'User';
+  let currentUserRole = 'Collecting Officer';
 
-  if (pathname.startsWith('/treasurer')) {
-    currentUserRole = 'Treasurer';
+  if (pathname.startsWith('/collecting-officer')) {
+    currentUserRole = 'Collecting Officer';
+  } else if (pathname.startsWith('/disbursing-officer')) {
+    currentUserRole = 'Disbursing Officer';
   } else if (pathname.startsWith('/admin')) {
-    currentUserRole = 'Officer/Admin';
+    currentUserRole = 'System Admin';
   } else if (pathname.startsWith('/auditor')) {
     currentUserRole = 'Auditor';
-  } else if (pathname.startsWith('/member')) {
-    currentUserRole = 'User';
   } else {
     const rawRole = (session?.user as { role?: string })?.role;
     if (rawRole) {
-      const formatted = rawRole.charAt(0).toUpperCase() + rawRole.slice(1).toLowerCase();
-      if (formatted === 'Admin') currentUserRole = 'Officer/Admin';
-      else if (formatted === 'Member') currentUserRole = 'User';
-      else currentUserRole = formatted;
+      if (rawRole === 'collecting_officer') currentUserRole = 'Collecting Officer';
+      else if (rawRole === 'disbursing_officer') currentUserRole = 'Disbursing Officer';
+      else if (rawRole === 'admin') currentUserRole = 'System Admin';
+      else if (rawRole === 'auditor') currentUserRole = 'Auditor';
+      else {
+        const formatted = rawRole.charAt(0).toUpperCase() + rawRole.slice(1).toLowerCase();
+        currentUserRole = formatted;
+      }
     }
   }
 
@@ -48,36 +52,43 @@ export default function Sidebar() {
   const lastName = nameParts.pop();
   const firstName = nameParts.join(' ');
 
+
   const generalNavItems = [
-    { label: 'Dashboard', href: '/dashboard', icon: Home, roles: ['User', 'Officer/Admin', 'Superadmin', 'Treasurer', 'Auditor'] },
-    { label: 'Events', href: '/events', icon: Calendar, roles: ['User', 'Officer/Admin', 'Superadmin', 'Treasurer', 'Auditor'] },
+    { label: 'Events', href: '/events', icon: Calendar, roles: ['System Admin', 'Collecting Officer', 'Disbursing Officer', 'Auditor'] },
+    { label: 'Notifications', href: '/notifications', icon: Bell, roles: ['System Admin', 'Collecting Officer', 'Disbursing Officer', 'Auditor'] },
   ];
 
   const systemNavItems = [
     {
       label: 'Finance',
       icon: Book,
-      roles: ['User', 'Officer/Admin', 'Treasurer', 'Auditor'],
+      roles: ['System Admin', 'Collecting Officer', 'Disbursing Officer', 'Auditor'],
       subItems: [
-        { label: 'My Summary', href: '/member/dashboard', icon: PieChart, roles: ['User'] },
-        { label: 'Collection Processing', href: '/member/collections', icon: UploadCloud, roles: ['User'] },
+        // System Admin routes
+        { label: 'Dashboard', href: '/admin', icon: LayoutDashboard, roles: ['System Admin'] },
+        { label: 'Funds Master', href: '/admin/funds', icon: Briefcase, roles: ['System Admin'] },
+        { label: 'Fund Lifespan', href: '/admin/lifespan', icon: Activity, roles: ['System Admin'] },
 
-        // { label: 'User Management', href: '/admin/dashboard', icon: Users, roles: ['Officer/Admin'] },
-        // { label: 'Fund Master', href: '/admin/funds', icon: Briefcase, roles: ['Officer/Admin'] },
-        { label: 'Funds', href: '/admin/funds', icon: Briefcase, roles: ['Officer/Admin'] },
-        { label: 'Disbursement', href: '/admin/disbursement', icon: Send, roles: ['Officer/Admin'] },
+        // Collecting Officer routes
+        { label: 'Dashboard', href: '/collecting-officer', icon: LayoutDashboard, roles: ['Collecting Officer'] },
+        { label: 'Collections', href: '/collecting-officer/collections', icon: ClipboardCheck, roles: ['Collecting Officer'] },
+        { label: 'Payroll Processing', href: '/collecting-officer/payroll', icon: Calendar, roles: ['Collecting Officer'] },
+        { label: 'Fund Inflows', href: '/collecting-officer/funds', icon: Briefcase, roles: ['Collecting Officer'] },
+        { label: 'Fund Lifespan', href: '/collecting-officer/lifespan', icon: Activity, roles: ['Collecting Officer'] },
 
+        // Disbursing Officer routes
+        { label: 'Dashboard', href: '/disbursing-officer', icon: LayoutDashboard, roles: ['Disbursing Officer'] },
+        { label: 'Disbursement', href: '/disbursing-officer/disbursement', icon: Send, roles: ['Disbursing Officer'] },
+        { label: 'Fund Outflows', href: '/disbursing-officer/funds', icon: Briefcase, roles: ['Disbursing Officer'] },
+        { label: 'Fund Lifespan', href: '/disbursing-officer/lifespan', icon: Activity, roles: ['Disbursing Officer'] },
 
-        { label: 'Dashboard', href: '/treasurer/dashboard', icon: LayoutDashboard, roles: ['Treasurer'] },
-        { label: 'Disbursement', href: '/treasurer/disbursement', icon: Send, roles: ['Treasurer'] },
-        { label: 'Collections', href: '/treasurer/collections', icon: WalletCards, roles: ['Treasurer'] },
-        { label: 'Funds', href: '/treasurer/funds', icon: Briefcase, roles: ['Treasurer'] },
-        { label: 'Forecasting', href: '/treasurer/forecasting', icon: Activity, roles: ['Treasurer'] },
-
-        // { label: 'Audit Overview', href: '/auditor/collections', icon: ClipboardList, roles: ['Auditor'] },
+        // Auditor routes
+        { label: 'Dashboard', href: '/auditor', icon: LayoutDashboard, roles: ['Auditor'] },
         { label: 'Disbursement', href: '/auditor/disbursement', icon: Send, roles: ['Auditor'] },
         { label: 'Collections', href: '/auditor/collections', icon: FileText, roles: ['Auditor'] },
-        { label: 'Funds', href: '/auditor/funds', icon: Briefcase, roles: ['Auditor'] },
+        { label: 'Payroll Audit', href: '/auditor/payroll', icon: Calendar, roles: ['Auditor'] },
+        { label: 'Funds & Ledger', href: '/auditor/funds', icon: Briefcase, roles: ['Auditor'] },
+        { label: 'Lifespan Audit', href: '/auditor/lifespan', icon: Activity, roles: ['Auditor'] },
       ]
     },
   ];
@@ -98,7 +109,7 @@ export default function Sidebar() {
       if (hasSubItems && visibleSubItems.length === 0) return null;
 
       const isParentActive = hasSubItems && visibleSubItems.some((sub: any) => pathname === sub.href || pathname.startsWith(`${sub.href}/`));
-      const isDirectActive = !hasSubItems && (item.href === '/' ? pathname === '/' : pathname.startsWith(item.href!));
+      const isDirectActive = !hasSubItems && (pathname === item.href);
       const isOpen = openMenus[item.label] || isParentActive;
 
       const baseClasses = `flex items-center transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] font-semibold text-[13px] w-full relative active:scale-[0.98] group z-10 outline-none ${isCollapsed ? 'justify-center w-11 h-11 rounded-[16px] mx-auto' : 'px-3.5 py-3 rounded-[16px] justify-between'

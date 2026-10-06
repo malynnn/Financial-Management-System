@@ -129,8 +129,8 @@ export default function DisbursementRequestModal({ isOpen, onClose, onSuccess }:
       beneficiaryBank: beneficiaryBank,
       beneficiaryAccount: beneficiaryAccount,
       description: `Disbursement request for ${selectedLoan.type || selectedLoan.obligationType || 'Loan'}`,
-      actorName: 'Treasurer',
-      actorRole: 'Treasurer',
+      actorName: 'Disbursing Officer',
+      actorRole: 'Disbursing Officer',
     };
 
     try {
@@ -157,8 +157,8 @@ export default function DisbursementRequestModal({ isOpen, onClose, onSuccess }:
             {
               id: `at-${Date.now()}`,
               action: 'Disbursement Requested',
-              actor: 'Treasurer',
-              role: 'Treasurer',
+              actor: 'Disbursing Officer',
+              role: 'Disbursing Officer',
               timestamp: new Date().toISOString(),
               details: `Requested ₱${Number(amount).toLocaleString()} for ${selectedLoan.type || selectedLoan.obligationType}.`,
             },
@@ -180,7 +180,7 @@ export default function DisbursementRequestModal({ isOpen, onClose, onSuccess }:
         beneficiary: { name: beneficiaryName, bank: beneficiaryBank, account: beneficiaryAccount },
         fundSource: selectedLoan.fundSource,
         method: method,
-        auditTrail: [{ id: `at-${Date.now()}`, action: 'Disbursement Requested', actor: 'Treasurer', role: 'Treasurer', timestamp: new Date().toISOString(), details: `Requested ₱${Number(amount).toLocaleString()} for ${selectedLoan.type || selectedLoan.obligationType}.` }]
+        auditTrail: [{ id: `at-${Date.now()}`, action: 'Disbursement Requested', actor: 'Disbursing Officer', role: 'Disbursing Officer', timestamp: new Date().toISOString(), details: `Requested ₱${Number(amount).toLocaleString()} for ${selectedLoan.type || selectedLoan.obligationType}.` }]
       };
       onSuccess(newRecord);
     } finally {

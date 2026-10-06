@@ -85,8 +85,8 @@ export default function DisbursementAuditModal({
     {
       id: 'log-1',
       action: 'Disbursement Recorded & Funds Released',
-      actor: 'Treasurer',
-      role: 'Treasurer',
+      actor: 'Disbursing Officer',
+      role: 'Disbursing Officer',
       timestamp: new Date().toISOString(),
       details: `Disbursed ₱${disbursement.amount.toLocaleString()} under reference ${
         disbursement.ref

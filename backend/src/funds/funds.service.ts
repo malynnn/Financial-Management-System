@@ -103,7 +103,7 @@ export class FundsService {
    * FMS-001: Register a new fund record.
    * Rule: Unique fund code and fund name required.
    */
-  async createFund(dto: CreateFundDto) {
+  async createFund(dto: CreateFundDto, userId?: string) {
     await this.ensureSeedFunds();
 
     const cleanName = dto.name.trim();
@@ -136,6 +136,7 @@ export class FundsService {
         currentBalance: openingBalanceNum,
         targetUtilization: Number(dto.targetUtilization) || 80,
         status: dto.status || 'Active',
+        auditTrail: { create: { action: 'Fund Created', details: `Fund ${cleanCode} created with opening balance ${openingBalanceNum}`, userId } }
       },
     });
 
@@ -160,7 +161,7 @@ export class FundsService {
   /**
    * FMS-001: Edit an existing fund configuration.
    */
-  async updateFund(id: string, dto: UpdateFundDto) {
+  async updateFund(id: string, dto: UpdateFundDto, userId?: string) {
     const fund = await this.prisma.fund.findUnique({ where: { id } });
     if (!fund) {
       throw new NotFoundException(`Fund with ID "${id}" not found.`);
@@ -206,7 +207,7 @@ export class FundsService {
 
     await this.prisma.fund.update({
       where: { id },
-      data: dataToUpdate,
+      data: { ...dataToUpdate, auditTrail: { create: { action: 'Fund Configuration Updated', details: 'Fund configuration updated manually.', userId } } },
     });
 
     return this.getFundWithCalculatedBalance(id);
@@ -215,7 +216,7 @@ export class FundsService {
   /**
    * FMS-001: Activate or deactivate a fund.
    */
-  async toggleFundStatus(id: string, dto: ToggleFundStatusDto) {
+  async toggleFundStatus(id: string, dto: ToggleFundStatusDto, userId?: string) {
     const fund = await this.prisma.fund.findUnique({ where: { id } });
     if (!fund) {
       throw new NotFoundException(`Fund with ID "${id}" not found.`);
@@ -223,7 +224,7 @@ export class FundsService {
 
     const updated = await this.prisma.fund.update({
       where: { id },
-      data: { status: dto.status },
+      data: { status: dto.status, auditTrail: { create: { action: `Fund ${dto.status === 'Active' ? 'Activated' : 'Deactivated'}`, details: `Status changed to ${dto.status}`, userId } } },
     });
 
     return this.getFundWithCalculatedBalance(updated.id);
@@ -267,8 +268,9 @@ export class FundsService {
   /**
    * FMS-003: Calculate fund balance using opening balance and all valid posted fund transactions.
    */
-  async calculateFundBalance(fundId: string, asOfDate?: Date): Promise<number> {
-    const fund = await this.prisma.fund.findUnique({
+  async calculateFundBalance(fundId: string, asOfDate?: Date, txClient?: any): Promise<number> {
+    const client = txClient || this.prisma;
+    const fund = await client.fund.findUnique({
       where: { id: fundId },
       include: {
         transactions: {
@@ -310,8 +312,9 @@ export class FundsService {
   /**
    * FMS-003: Helper to return fund data with computed dynamic balance and pending disbursements.
    */
-  async getFundWithCalculatedBalance(fundId: string) {
-    const fund = await this.prisma.fund.findUnique({
+  async getFundWithCalculatedBalance(fundId: string, txClient?: any) {
+    const client = txClient || this.prisma;
+    const fund = await client.fund.findUnique({
       where: { id: fundId },
     });
 
@@ -319,16 +322,16 @@ export class FundsService {
       throw new NotFoundException(`Fund with ID "${fundId}" not found.`);
     }
 
-    const calculatedBalance = await this.calculateFundBalance(fund.id);
+    const calculatedBalance = await this.calculateFundBalance(fund.id, undefined, client);
 
     // Sync calculated balance with stored currentBalance
-    await this.prisma.fund.update({
+    await client.fund.update({
       where: { id: fund.id },
       data: { currentBalance: calculatedBalance },
     });
 
     // Compute pending disbursements
-    const pendingDisbursementsAgg = await this.prisma.disbursement.aggregate({
+    const pendingDisbursementsAgg = await client.disbursement.aggregate({
       where: {
         OR: [
           { fundId: fund.id },
@@ -487,12 +490,26 @@ export class FundsService {
     referenceId?: string;
     description?: string;
     date?: Date;
-  }) {
+  }, txClient?: any) {
     // FMS-005: Validate fund assignment
     const activeFund = await this.validateFundAssignment(data.fundIdOrName);
+    const client = txClient || this.prisma;
+
+    // FMS-007: Prevent duplicate financial events. 
+    // The same source collection or disbursement reference shall not create more than one posted fund movement.
+    const duplicateTx = await client.fundTransaction.findFirst({
+      where: {
+        transactionRef: data.transactionRef,
+        status: 'Posted'
+      }
+    });
+
+    if (duplicateTx) {
+      throw new ConflictException(`FMS-007: Duplicate financial event prevented. Transaction reference ${data.transactionRef} already exists.`);
+    }
 
     // Create FundTransaction
-    const tx = await this.prisma.fundTransaction.create({
+    const tx = await client.fundTransaction.create({
       data: {
         fundId: activeFund.id,
         transactionRef: data.transactionRef,
@@ -507,7 +524,7 @@ export class FundsService {
     });
 
     // Refresh dynamic balance
-    await this.getFundWithCalculatedBalance(activeFund.id);
+    await this.getFundWithCalculatedBalance(activeFund.id, client);
 
     return tx;
   }
@@ -991,3 +1008,7 @@ export class FundsService {
     };
   }
 }
+
+
+
+

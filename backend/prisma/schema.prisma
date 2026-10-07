@@ -8,9 +8,9 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // ENUMS
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 enum Role {
   ADMIN
@@ -55,9 +55,9 @@ enum ChequeStatus {
   CANCELLED_VOID
 }
 
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // USER / AUTH
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model User {
   id           String   @id @default(cuid())
@@ -65,182 +65,188 @@ model User {
   email        String   @unique
   passwordHash String
   role         Role     @default(MEMBER)
+  isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  collections           Collection[]
-  obligations           FinancialObligation[]
-  disbursements         Disbursement[] @relation("CreatedBy")
-  disbursementsExecuted Disbursement[] @relation("DisbursedBy")
-  disbursementAuditLogs DisbursementAuditLog[]
-  fundTransfers         FundTransfer[]
+  collections               Collection[]
+  obligations               FinancialObligation[]
+  disbursements             Disbursement[]             @relation("CreatedBy")
+  disbursementsExecuted     Disbursement[]             @relation("DisbursedBy")
+  disbursementAuditLogs     DisbursementAuditLog[]
+  fundTransfers             FundTransfer[]
+  payrollDeductionSchedules PayrollDeductionSchedule[]
 }
 
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // FINANCIAL OBLIGATION & LOAN (DMP-001, DMP-004, DMP-005, DMP-007)
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model FinancialObligation {
-  id                  String                  @id @default(cuid())
-  memberId            String
-  obligationType      String                  // e.g. "Annual Dues", "Emergency Loan", "Educational Loan", "Calamity Loan"
-  originalAmount      Decimal                 @db.Decimal(12, 2)
-  outstandingBalance  Decimal                 @db.Decimal(12, 2)
-  dueDate             DateTime?
-  status              String                  @default("UNPAID") // UNPAID, PARTIALLY_PAID, Fully Paid
+  id                 String    @id @default(cuid())
+  memberId           String
+  obligationType     String // e.g. "Annual Dues", "Emergency Loan", "Educational Loan", "Calamity Loan"
+  originalAmount     Decimal   @db.Decimal(12, 2)
+  outstandingBalance Decimal   @db.Decimal(12, 2)
+  dueDate            DateTime?
+  status             String    @default("UNPAID") // UNPAID, PARTIALLY_PAID, Fully Paid
 
   // DMP Loan & Disbursement Support
-  loanStatus          String?                 @default("Approved") // Pending, Approved, Disbursed, Rejected
-  approvedAmount      Decimal?                @db.Decimal(12, 2)
-  disbursedAmount     Decimal?                @default(0) @db.Decimal(12, 2)
-  remainingLoanAmount Decimal?                @db.Decimal(12, 2)
+  loanStatus          String?  @default("Approved") // Pending, Approved, Disbursed, Rejected
+  approvedAmount      Decimal? @db.Decimal(12, 2)
+  disbursedAmount     Decimal? @default(0) @db.Decimal(12, 2)
+  remainingLoanAmount Decimal? @db.Decimal(12, 2)
+  monthlyDeduction    Decimal? @db.Decimal(12, 2)
   beneficiaryName     String?
   beneficiaryBank     String?
   beneficiaryAccount  String?
-  fundSource          String?                 @default("General Fund")
+  fundSource          String?  @default("General Fund")
 
-  createdAt           DateTime                @default(now())
-  updatedAt           DateTime                @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  member              User                    @relation(fields: [memberId], references: [id])
-  applications        CollectionApplication[]
-  disbursements       Disbursement[]
+  member                    User                       @relation(fields: [memberId], references: [id])
+  applications              CollectionApplication[]
+  disbursements             Disbursement[]
+  payrollDeductionSchedules PayrollDeductionSchedule[]
 }
 
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // COLLECTION (CPS-001 through CPS-014)
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model Collection {
-  id                      String           @id @default(cuid())
+  id String @id @default(cuid())
 
   // CPS-007: Unique Collection Reference Number
-  collectionRefNo         String?          @unique
+  collectionRefNo String? @unique
 
   // CPS-001: Required payment details
-  memberId                String
-  paymentAmount           Decimal          @db.Decimal(12, 2)
-  paymentDate             DateTime
-  paymentMethod           PaymentMethod
-  paymentReference        String
+  memberId         String
+  paymentAmount    Decimal       @db.Decimal(12, 2)
+  paymentDate      DateTime
+  paymentMethod    PaymentMethod
+  paymentReference String
 
   // Optional notes
-  description             String?
+  description String?
 
   // CPS-006: Collection category classification
-  collectionCategory      String?
+  collectionCategory String?
 
   // Status (CPS-003, CPS-004, CPS-011)
-  status                  CollectionStatus @default(PENDING)
+  status CollectionStatus @default(PENDING)
 
   // Rejection note
-  rejectReason            String?
+  rejectReason String?
 
   // CPS-002: Proof of payment file
-  proofOfPaymentPath      String?
-  proofOfPaymentName      String?
+  proofOfPaymentPath String?
+  proofOfPaymentName String?
 
   // CPS-014: Bank Reconciliation status
-  isReadyForReconciliation Boolean          @default(false)
-  reconciledAt            DateTime?
+  isReadyForReconciliation Boolean   @default(false)
+  reconciledAt             DateTime?
 
   // FMS-002: Assigned Fund
-  fundId                  String?
-  fund                    Fund?                   @relation(fields: [fundId], references: [id])
+  fundId String?
+  fund   Fund?   @relation(fields: [fundId], references: [id])
 
-  createdAt               DateTime         @default(now())
-  updatedAt               DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  member                  User                    @relation(fields: [memberId], references: [id])
-  application             CollectionApplication?
-  auditTrail              CollectionAuditLog[]
+  member      User                   @relation(fields: [memberId], references: [id])
+  application CollectionApplication?
+  auditTrail  CollectionAuditLog[]
 }
 
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // PAYMENT APPLICATION (CPS-008, CPS-009, CPS-010)
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model CollectionApplication {
-  id               String               @id @default(cuid())
-  collectionId     String               @unique
+  id               String   @id @default(cuid())
+  collectionId     String   @unique
   obligationId     String?
-  originalBalance  Decimal              @db.Decimal(12, 2)
-  appliedAmount    Decimal              @db.Decimal(12, 2)
-  remainingBalance Decimal              @db.Decimal(12, 2)
-  exceptionStatus  String               // "Exact Match" | "Partial Payment" | "Overpayment" | "Unapplied"
-  appliedAt        DateTime             @default(now())
+  originalBalance  Decimal  @db.Decimal(12, 2)
+  appliedAmount    Decimal  @db.Decimal(12, 2)
+  remainingBalance Decimal  @db.Decimal(12, 2)
+  exceptionStatus  String // "Exact Match" | "Partial Payment" | "Overpayment" | "Unapplied"
+  appliedAt        DateTime @default(now())
 
-  collection       Collection           @relation(fields: [collectionId], references: [id])
-  obligation       FinancialObligation? @relation(fields: [obligationId], references: [id])
+  collection Collection           @relation(fields: [collectionId], references: [id])
+  obligation FinancialObligation? @relation(fields: [obligationId], references: [id])
 }
 
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // AUDIT LOG (CPS-012)
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model CollectionAuditLog {
-  id              String     @id @default(cuid())
+  id              String   @id @default(cuid())
   collectionId    String
   userId          String?
   collectionRefNo String?
   action          String
   previousStatus  String?
   newStatus       String?
-  actor           String     @default("Treasurer")
-  role            String     @default("Treasurer")
-  timestamp       DateTime   @default(now())
+  actor           String   @default("Treasurer")
+  role            String   @default("Treasurer")
+  timestamp       DateTime @default(now())
   details         String
 
-  collection      Collection @relation(fields: [collectionId], references: [id])
+  collection Collection @relation(fields: [collectionId], references: [id])
 }
 
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // FUND MANAGEMENT (FMS-001 through FMS-005)
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model Fund {
-  id                String            @id @default(cuid())
-  name              String            @unique
-  code              String            @unique
+  id                String  @id @default(cuid())
+  name              String  @unique
+  code              String  @unique
   description       String?
-  openingBalance    Decimal           @default(0) @db.Decimal(14, 2)
-  currentBalance    Decimal           @default(0) @db.Decimal(14, 2)
-  targetUtilization Decimal           @default(80) @db.Decimal(5, 2)
-  status            String            @default("Active") // "Active" | "Inactive"
+  openingBalance    Decimal @default(0) @db.Decimal(14, 2)
+  currentBalance    Decimal @default(0) @db.Decimal(14, 2)
+  targetUtilization Decimal @default(80) @db.Decimal(5, 2)
+  status            String  @default("Active") // "Active" | "Inactive"
 
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  transactions      FundTransaction[]
-  collections       Collection[]
-  disbursements     Disbursement[]
-  forecastRecords   ForecastRecord[]
+  transactions        FundTransaction[]
+  collections         Collection[]
+  disbursements       Disbursement[]
+  forecastRecords     ForecastRecord[]
+  auditTrail          FundAuditLog[]
+  lifespanPredictions LifespanPrediction[]
 }
 
 model FundTransaction {
   id              String   @id @default(cuid())
   fundId          String
   transactionRef  String
-  transactionType String   // "Inflow (Collection)", "Outflow (Disbursement)", "Opening Balance", "Transfer In", "Transfer Out"
+  transactionType String // "Inflow (Collection)", "Outflow (Disbursement)", "Opening Balance", "Transfer In", "Transfer Out"
   amount          Decimal  @db.Decimal(14, 2)
   status          String   @default("Posted") // "Posted", "Pending"
-  referenceType   String?  // "COLLECTION", "DISBURSEMENT", "OPENING_BALANCE", "TRANSFER"
+  referenceType   String? // "COLLECTION", "DISBURSEMENT", "OPENING_BALANCE", "TRANSFER"
   referenceId     String?
   description     String?
   date            DateTime @default(now())
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  fund            Fund     @relation(fields: [fundId], references: [id], onDelete: Cascade)
+  fund Fund @relation(fields: [fundId], references: [id], onDelete: Cascade)
 
   @@index([fundId])
   @@index([transactionRef])
   @@index([status])
 }
 
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // FUND ACCOUNT (DMP-006, DMP-007)
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model FundAccount {
   id               String   @id @default(cuid())
@@ -252,9 +258,9 @@ model FundAccount {
   updatedAt        DateTime @updatedAt
 }
 
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // DISBURSEMENT (DMP-001 through DMP-007)
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model Disbursement {
   id                 String             @id @default(cuid())
@@ -276,24 +282,24 @@ model Disbursement {
   description        String?
   status             DisbursementStatus @default(PENDING_APPROVAL)
   rejectionReason    String?
-  executionRefNo     String?            // e.g. "PAY-991001"
+  executionRefNo     String? // e.g. "PAY-991001"
 
   // DMP-014: Bank Reconciliation Readiness
-  isReadyForReconciliation Boolean        @default(false)
-  reconciledAt            DateTime?
+  isReadyForReconciliation Boolean   @default(false)
+  reconciledAt             DateTime?
 
-  date               DateTime           @default(now())
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  fund               Fund?              @relation(fields: [fundId], references: [id])
-  disbursedById      String?
-  disbursedBy        User?              @relation("DisbursedBy", fields: [disbursedById], references: [id])
-  createdById        String?
-  createdBy          User?              @relation("CreatedBy", fields: [createdById], references: [id])
-  obligation         FinancialObligation? @relation(fields: [obligationId], references: [id])
-  auditTrail         DisbursementAuditLog[]
-  cheque             ChequeRecord?
+  fund          Fund?                  @relation(fields: [fundId], references: [id])
+  disbursedById String?
+  disbursedBy   User?                  @relation("DisbursedBy", fields: [disbursedById], references: [id])
+  createdById   String?
+  createdBy     User?                  @relation("CreatedBy", fields: [createdById], references: [id])
+  obligation    FinancialObligation?   @relation(fields: [obligationId], references: [id])
+  auditTrail    DisbursementAuditLog[]
+  cheque        ChequeRecord?
 }
 
 model ChequeRecord {
@@ -302,7 +308,7 @@ model ChequeRecord {
   chequeNumber   String       @unique
   chequeDate     DateTime
   payee          String
-  amount         Decimal      @db.Decimal(12,2)
+  amount         Decimal      @db.Decimal(12, 2)
   purpose        String
   relatedRef     String
   status         ChequeStatus @default(ISSUED)
@@ -316,30 +322,30 @@ model DisbursementSequence {
   last Int @default(0)
 }
 
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // DISBURSEMENT AUDIT LOG
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model DisbursementAuditLog {
-  id                String       @id @default(cuid())
+  id                String   @id @default(cuid())
   disbursementId    String
   userId            String?
-  user              User?        @relation(fields: [userId], references: [id])
+  user              User?    @relation(fields: [userId], references: [id])
   disbursementRefNo String?
   action            String
   previousStatus    String?
   newStatus         String?
-  actor             String       @default("Treasurer")
-  role              String       @default("Treasurer")
-  timestamp         DateTime     @default(now())
+  actor             String   @default("Treasurer")
+  role              String   @default("Treasurer")
+  timestamp         DateTime @default(now())
   details           String
 
-  disbursement      Disbursement @relation(fields: [disbursementId], references: [id])
+  disbursement Disbursement @relation(fields: [disbursementId], references: [id])
 }
 
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // FUND TRANSFER
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model FundTransfer {
   id          String   @id @default(cuid())
@@ -355,9 +361,9 @@ model FundTransfer {
   transferredBy   User   @relation(fields: [transferredById], references: [id])
 }
 
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // AI FORECASTING (FAI-011, FAI-012)
-// ─────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model ForecastRecord {
   id               String   @id @default(cuid())
@@ -365,7 +371,7 @@ model ForecastRecord {
   fundId           String
   fundCode         String
   fundName         String
-  forecastPeriod   String   // e.g. "2026-09"
+  forecastPeriod   String // e.g. "2026-09"
   forecastValue    Decimal  @db.Decimal(14, 2)
   projectedInflow  Decimal  @default(0) @db.Decimal(14, 2)
   projectedOutflow Decimal  @default(0) @db.Decimal(14, 2)
@@ -376,11 +382,154 @@ model ForecastRecord {
   generationDate   DateTime @default(now())
   createdAt        DateTime @default(now())
 
-  fund             Fund     @relation(fields: [fundId], references: [id], onDelete: Cascade)
+  fund Fund @relation(fields: [fundId], references: [id], onDelete: Cascade)
 
   @@index([fundId])
   @@index([fundCode])
   @@index([forecastPeriod])
   @@index([batchId])
   @@index([isValid])
+}
+
+model ExecutionSequence {
+  year Int @id
+  last Int @default(0)
+}
+
+// CPS-002: Race-safe yearly sequence for Collection Reference Numbers
+model CollectionSequence {
+  year Int @id
+  last Int @default(0)
+}
+
+// REMITTANCE (CPS-009, CPS-010)
+model RemittanceBatch {
+  id            String           @id @default(cuid())
+  batchRef      String           @unique
+  fileName      String
+  fileHash      String           @unique
+  payrollPeriod String
+  status        String           @default("UPLOADED")
+  totalLines    Int
+  totalAmount   Decimal          @db.Decimal(14, 2)
+  uploadedBy    String?
+  createdAt     DateTime         @default(now())
+  lines         RemittanceLine[]
+}
+
+model RemittanceLine {
+  id           String          @id @default(cuid())
+  batchId      String
+  lineNo       Int
+  memberId     String
+  obligationId String
+  amount       Decimal         @db.Decimal(12, 2)
+  matchStatus  String          @default("PENDING")
+  matchReasons String[]        @default([])
+  batch        RemittanceBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
+}
+
+model FundAuditLog {
+  id        String   @id @default(cuid())
+  fundId    String
+  userId    String?
+  action    String
+  details   String
+  timestamp DateTime @default(now())
+
+  fund Fund @relation(fields: [fundId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────────────────────
+// PAYROLL DEDUCTION SCHEDULE (PPS-001 through PPS-008)
+// ─────────────────────────────────────────────────────────────────
+
+enum DeductionType {
+  FINANCIAL_OBLIGATION
+  ANNUAL_DUES
+  CONTRIBUTION
+  OTHER
+}
+
+model PayrollDeductionSchedule {
+  id             String        @id @default(cuid())
+  payrollPeriod  String
+  memberId       String
+  deductionType  DeductionType
+  expectedAmount Decimal       @db.Decimal(12, 2)
+  obligationId   String?
+  status         String        @default("SCHEDULED")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  member     User                 @relation(fields: [memberId], references: [id])
+  obligation FinancialObligation? @relation(fields: [obligationId], references: [id])
+
+  @@unique([memberId, payrollPeriod, deductionType, obligationId], name: "unique_deduction_schedule")
+}
+
+model PayrollDeductionList {
+  id            String   @id @default(cuid())
+  batchRef      String   @unique
+  payrollPeriod String
+  totalAmount   Decimal  @default(0) @db.Decimal(14, 2)
+  status        String   @default("GENERATED")
+  createdAt     DateTime @default(now())
+}
+
+model PayrollAuditLog {
+  id        String   @id @default(cuid())
+  batchId   String?
+  userId    String?
+  action    String
+  details   String
+  timestamp DateTime @default(now())
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// LIFESPAN PREDICTION (AI-FLP-014 through AI-FLP-018)
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model LifespanPrediction {
+  id                      String   @id @default(cuid())
+  fundId                  String
+  fundCode                String
+  generationDate          DateTime @default(now())
+  historicalPeriodsUsed   Int
+  modelVersion            String   @default("1.0.0")
+  startingBalance         Decimal  @db.Decimal(14, 2)
+  averageNetMovement      Decimal  @db.Decimal(14, 2)
+  depletionRate           Decimal  @db.Decimal(14, 2)
+  estimatedLifespanMonths Decimal? @db.Decimal(10, 2)
+  projectedDepletionDate  String?
+  fundCondition           String
+  confidenceLevel         String
+
+  fund   Fund            @relation(fields: [fundId], references: [id], onDelete: Cascade)
+  alerts LifespanAlert[]
+}
+
+model LifespanAlert {
+  id           String   @id @default(cuid())
+  predictionId String
+  fundCode     String
+  alertLevel   String // e.g., "WARNING", "CRITICAL"
+  message      String
+  isResolved   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  prediction LifespanPrediction @relation(fields: [predictionId], references: [id], onDelete: Cascade)
+}
+
+model LifespanAuditLog {
+  id               String   @id @default(cuid())
+  action           String // e.g., "GENERATE_PREDICTION"
+  actor            String   @default("SYSTEM")
+  fundCode         String
+  modelVersion     String
+  sourceDataPeriod String // e.g., "3 periods"
+  predictionStatus String // e.g., "SUCCESS", "INSUFFICIENT_DATA"
+  timestamp        DateTime @default(now())
 }

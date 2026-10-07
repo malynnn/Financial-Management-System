@@ -351,11 +351,11 @@ export default function NewCollectionModal({ isOpen, onClose, onSuccess, existin
       paymentDate: paymentDate,
       paymentMethod: paymentMethod === 'Over-the-Counter' ? 'CASH' : 
                      paymentMethod === 'Bank Transfer' ? 'BANK_TRANSFER' :
-                     paymentMethod === 'GCash' ? 'GCASH' : 'OTHER',
+                     paymentMethod === 'GCash' ? 'GCASH' :
+                     paymentMethod === 'Check' ? 'CHECK' : 'OTHER',
       paymentReference: paymentReference.trim() || undefined,
       description: purpose.trim(),
-      category: collectionCategory,
-      obligationId: selectedObligationId !== 'unapplied' ? selectedObligationId : undefined,
+      collectionCategory: collectionCategory,
     };
 
     try {

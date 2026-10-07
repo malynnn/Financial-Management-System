@@ -8,6 +8,9 @@ import { ObligationsModule } from './obligations/obligations.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RabbitMQModule } from './rabbitmq/rabbitmq.module';
 import { UsersModule } from './users/users.module';
+import { PayrollModule } from './payroll/payroll.module';
+import { RemittanceModule } from './remittance/remittance.module';
+import { LifespanModule } from './lifespan/lifespan.module';
 
 @Module({
   imports: [
@@ -23,6 +26,9 @@ import { UsersModule } from './users/users.module';
     DisbursementsModule,
     ForecastingModule,
     RabbitMQModule,
+    PayrollModule,
+    RemittanceModule,
+    LifespanModule,
   ],
   controllers: [],
   providers: [],

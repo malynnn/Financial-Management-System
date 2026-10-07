@@ -26,6 +26,7 @@ import { CollectionStatus } from '@prisma/client';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { AuditorReadOnlyGuard } from '../common/guards/auditor-read-only.guard';
+import { COLLECTION_CATEGORIES, PAYMENT_METHOD_CONFIG } from './collections.config';
 import { CollectionsService } from './collections.service';
 import { ApplyPaymentDto } from './dto/apply-payment.dto';
 import { ClassifyCollectionDto } from './dto/classify-collection.dto';
@@ -112,6 +113,20 @@ export class CollectionsController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     return this.collectionsService.uploadProof(id, file);
+  }
+
+  /**
+   * CPS-004 / CPS-005 — Configured payment methods and categories
+   */
+  @Get('config/options')
+  @ApiOperation({ summary: 'CPS-004/005: Configured payment methods (with reference requirement) and categories' })
+  getConfigOptions() {
+    return {
+      paymentMethods: Object.entries(PAYMENT_METHOD_CONFIG)
+        .filter(([, cfg]) => cfg.enabled)
+        .map(([value, cfg]) => ({ value, requiresReference: cfg.requiresReference })),
+      categories: COLLECTION_CATEGORIES,
+    };
   }
 
   /**

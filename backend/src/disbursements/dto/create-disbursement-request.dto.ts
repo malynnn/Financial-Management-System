@@ -11,7 +11,8 @@ import {
   ValidateIf,
   ValidateNested,
   IsDateString,
-  IsIn
+  IsIn,
+  IsBoolean
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ChequeDto } from './cheque.dto';
@@ -97,4 +98,9 @@ export class CreateDisbursementRequestDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @ApiPropertyOptional({ description: 'Explicit exception approval flag to bypass fund balance check (DPS-006)' })
+  @IsOptional()
+  @IsBoolean()
+  allowFundException?: boolean;
 }

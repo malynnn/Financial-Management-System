@@ -20,6 +20,7 @@ describe('CollectionsService (Sprint 1: CPS-001 — CPS-005)', () => {
     email: 'juan@test.com',
     passwordHash: 'hashed',
     role: 'MEMBER',
+    isActive: true,
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
   };

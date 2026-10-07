@@ -14,16 +14,18 @@ import { QueryDisbursementDto } from './dto/query-disbursement.dto';
 import { ReviewAction, ReviewDisbursementDto } from './dto/review-disbursement.dto';
 import { UpdateChequeStatusDto } from './dto/update-cheque-status.dto';
 import { REQUIRES_SUPPORTING_DOC } from './disbursement.config';
+import { RabbitMQService } from '../rabbitmq/rabbitmq.service';
 
 @Injectable()
 export class DisbursementsService {
   constructor(
     private readonly prisma: PrismaService,
     @Optional() private readonly fundsService?: FundsService,
+    @Optional() private readonly rabbitMQService?: RabbitMQService,
   ) {}
 
   /**
-   * DMP-002: Generate Sequential Reference No
+   * DPS-002: Generate Sequential Reference No
    */
   async nextReference(tx: Prisma.TransactionClient): Promise<string> {
     const year = new Date().getFullYear();
@@ -35,16 +37,29 @@ export class DisbursementsService {
     return `DSB-${year}-${seq.last.toString().padStart(5, '0')}`;
   }
 
+  /**
+   * Generate Sequential Execution Reference No (DPS-009)
+   */
+  async nextExecutionReference(tx: Prisma.TransactionClient): Promise<string> {
+    const year = new Date().getFullYear();
+    const seq = await tx.executionSequence.upsert({
+      where: { year },
+      update: { last: { increment: 1 } },
+      create: { year, last: 1 },
+    });
+    return `PAY-${year}-${seq.last.toString().padStart(5, '0')}`;
+  }
+
   async getFundBalance(fundName: string, tx?: Prisma.TransactionClient) {
     const prismaClient = tx || this.prisma;
     const fund = await prismaClient.fund.findUnique({
       where: { name: fundName },
     });
     if (!fund) {
-      throw new BadRequestException(`DMP-005: Fund "${fundName}" is not configured or does not exist.`);
+      throw new BadRequestException(`DPS-006: Fund "${fundName}" is not configured or does not exist.`);
     }
     if (fund.status !== 'Active') {
-      throw new BadRequestException(`DMP-005: Fund "${fundName}" is not Active.`);
+      throw new BadRequestException(`DPS-006: Fund "${fundName}" is not Active.`);
     }
     return fund;
   }
@@ -121,22 +136,28 @@ export class DisbursementsService {
   ) {
     if (requestedMemberId && requestedMemberId !== loan.memberId) {
       throw new BadRequestException(
-        `DMP-004: Member ID mismatch. Requested member does not own loan obligation.`,
+        `DPS-004: Member ID mismatch. Requested member does not own loan obligation.`,
       );
     }
 
-    const approvedBeneficiary = (loan.beneficiaryName || loan.member?.name || '').trim().toLowerCase();
-    const cleanRequested = (requestedBeneficiaryName || '').trim().toLowerCase();
+    const approvedBeneficiary = (loan.beneficiaryName || loan.member?.name || '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
+    const cleanRequested = (requestedBeneficiaryName || '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
 
     if (!cleanRequested) {
-      throw new BadRequestException('DMP-004: Beneficiary name is required.');
+      throw new BadRequestException('DPS-004: Beneficiary name is required.');
     }
 
-    const isMatch = (approvedBeneficiary && cleanRequested && (approvedBeneficiary.includes(cleanRequested) || cleanRequested.includes(approvedBeneficiary)));
+    const isMatch = approvedBeneficiary === cleanRequested;
 
     if (!isMatch) {
       throw new BadRequestException(
-        `DMP-004: Beneficiary verification failed. Beneficiary "${requestedBeneficiaryName}" does not match.`,
+        `DPS-004: Beneficiary verification failed. Beneficiary "${requestedBeneficiaryName}" does not match.`,
       );
     }
     return true;
@@ -144,13 +165,13 @@ export class DisbursementsService {
 
   async createDisbursementRequest(dto: CreateDisbursementRequestDto, userId?: string) {
     if (REQUIRES_SUPPORTING_DOC[dto.type] && !dto.supportingDocRef) {
-      throw new BadRequestException(`DMP-004: A supporting document is required for ${dto.type}.`);
+      throw new BadRequestException(`DPS-004: A supporting document is required for ${dto.type}.`);
     }
 
     return await this.prisma.$transaction(async (tx) => {
       const fund = await this.getFundBalance(dto.fundSource, tx);
-      if (Number(fund.currentBalance) < dto.amount) {
-        throw new BadRequestException(`DMP-012: Insufficient fund balance. Available: ${fund.currentBalance}, Requested: ${dto.amount}`);
+      if (Number(fund.currentBalance) < dto.amount && !dto.allowFundException) {
+        throw new BadRequestException(`DPS-006: Insufficient fund balance. Available: ${fund.currentBalance}, Requested: ${dto.amount}`);
       }
 
       let obligation = null;
@@ -165,7 +186,7 @@ export class DisbursementsService {
         
         const loanStatus = (obligation.loanStatus || obligation.status || '').toLowerCase();
         if (loanStatus !== 'approved' && loanStatus !== 'partially disbursed') {
-          throw new BadRequestException(`DMP-001: Loan must be Approved.`);
+          throw new BadRequestException(`DPS-001: Loan must be Approved.`);
         }
         
         this.verifyBeneficiary(obligation, dto.beneficiaryName, dto.memberId);
@@ -175,7 +196,7 @@ export class DisbursementsService {
         const remainingLoanAmount = Number(obligation.remainingLoanAmount ?? (approvedLoanAmount - disbursedAmount));
 
         if (dto.amount > remainingLoanAmount) {
-          throw new BadRequestException(`DMP-008: Requested amount exceeds remaining loan balance.`);
+          throw new BadRequestException(`DPS-005: Requested amount exceeds remaining loan balance.`);
         }
       }
 
@@ -307,19 +328,34 @@ export class DisbursementsService {
       }
 
       const amountNum = Number(disbursement.amount);
-      const executionRefNo = dto.executionRefNo || `PAY-${Math.floor(Math.random() * 900000) + 100000}`;
+      const executionRefNo = dto.executionRefNo || await this.nextExecutionReference(tx);
+
+      const isBankRelated = disbursement.paymentMethod === PaymentMethod.BANK_TRANSFER || disbursement.paymentMethod === PaymentMethod.CHECK;
 
       const fund = await this.getFundBalance(disbursement.fundSource, tx);
-      if (Number(fund.currentBalance) < amountNum) {
-        throw new BadRequestException('Insufficient fund balance.');
+      if (Number(fund.currentBalance) < amountNum && !dto.allowFundException) {
+        throw new BadRequestException('FMS-006: Insufficient fund balance.');
       }
 
-      await tx.fund.update({
-        where: { id: fund.id },
-        data: {
-          currentBalance: { decrement: amountNum }
-        }
-      });
+      // FMS-002: Posted disbursements linked to correct fund. A disbursement from Module 2 shall affect the fund only after the disbursement has reached its required posted status and is linked to a valid fund.
+      if (this.fundsService) {
+        await this.fundsService.recordPostedTransaction({
+          fundIdOrName: fund.id,
+          transactionRef: executionRefNo,
+          transactionType: 'Outflow (Disbursement)',
+          amount: amountNum,
+          referenceType: 'DISBURSEMENT',
+          referenceId: disbursement.id,
+          description: `Disbursement executed for ${disbursement.category}`,
+          date: new Date()
+        }, tx);
+      } else {
+        // Fallback for isolated execution (should not occur if FundsModule is integrated)
+        await tx.fund.update({
+          where: { id: fund.id },
+          data: { currentBalance: { decrement: amountNum } }
+        });
+      }
       
       const fundAccount = await tx.fundAccount.findUnique({ where: { name: disbursement.fundSource } });
       if (fundAccount) {
@@ -341,23 +377,33 @@ export class DisbursementsService {
           throw new BadRequestException('Execution exceeds approved loan amount.');
         }
 
-        await tx.financialObligation.update({
-          where: { id: disbursement.obligationId },
-          data: {
-            disbursedAmount: new Prisma.Decimal(newDisbursed),
-            remainingLoanAmount: new Prisma.Decimal(newRemaining),
-            loanStatus: newRemaining === 0 ? 'Fully Disbursed' : 'Partially Disbursed',
-          },
-        });
+        try {
+          await tx.financialObligation.update({
+            where: { 
+              id: disbursement.obligationId,
+              remainingLoanAmount: { gte: amountNum }
+            },
+            data: {
+              disbursedAmount: new Prisma.Decimal(newDisbursed),
+              remainingLoanAmount: new Prisma.Decimal(newRemaining),
+              loanStatus: newRemaining === 0 ? 'Fully Disbursed' : 'Partially Disbursed',
+            },
+          });
+        } catch (error: any) {
+          if (error.code === 'P2025') {
+            throw new BadRequestException('DPS-005: Concurrent execution exceeds remaining loan balance.');
+          }
+          throw error;
+        }
       }
 
-      return await tx.disbursement.update({
+      const updatedDisbursement = await tx.disbursement.update({
         where: { id },
         data: {
           status: DisbursementStatus.EXECUTED,
           executionRefNo,
           disbursedBy: userId ? { connect: { id: userId } } : undefined,
-          isReadyForReconciliation: true,
+          isReadyForReconciliation: isBankRelated,
           auditTrail: {
             create: {
               disbursementRefNo: disbursement.disbursementRefNo,
@@ -371,6 +417,18 @@ export class DisbursementsService {
         },
         include: { obligation: true, auditTrail: { orderBy: { timestamp: 'asc' } }, cheque: true },
       });
+      
+      if (this.rabbitMQService) {
+        this.rabbitMQService.emitDisbursementExecuted({
+          disbursementId: updatedDisbursement.id,
+          reference: updatedDisbursement.executionRefNo,
+          amount: Number(updatedDisbursement.amount),
+          status: updatedDisbursement.status,
+          loanId: updatedDisbursement.obligationId
+        }, userId);
+      }
+
+      return updatedDisbursement;
     });
   }
 
@@ -495,3 +553,4 @@ export class DisbursementsService {
     return disbursement;
   }
 }
+

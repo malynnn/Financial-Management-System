@@ -13,6 +13,10 @@ interface AuditLog {
   role: string;
   timestamp: string;
   details: string;
+  userId?: string;
+  collectionRefNo?: string;
+  previousStatus?: string;
+  newStatus?: string;
 }
 
 interface CollectionAuditData {
@@ -58,7 +62,7 @@ export default function AuditHistoryModal({ isOpen, onClose, collection, showToa
     // dynamically generate a text file containing the audit trail
     const logContent = `AUDIT LOG - ${collection.ref}\nGenerated on: ${new Date().toISOString()}\n\n` + 
       collection.auditTrail.map(log => 
-        `[${new Date(log.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Manila' })}] ${log.action}\nDetails: ${log.details}\nActor: ${log.actor} (${log.role})\n`
+        `[${new Date(log.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Manila' })}] ${log.action}\nDetails: ${log.details}\nActor: ${log.actor} (${log.role})\nUser ID: ${log.userId || 'N/A'}\nReference: ${log.collectionRefNo || 'N/A'}\nStatus Change: ${log.previousStatus || 'None'} -> ${log.newStatus || 'N/A'}\n`
       ).join('\n----------------------------------------\n\n');
 
     const blob = new Blob([logContent], { type: 'text/plain' });
@@ -186,12 +190,31 @@ export default function AuditHistoryModal({ isOpen, onClose, collection, showToa
                           {new Date(log.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </div>
+
+                      {log.newStatus && (
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <span className="text-[10px] uppercase tracking-wider text-blue-600/70 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                            Status: {log.previousStatus || 'None'} &rarr; {log.newStatus}
+                          </span>
+                          {log.collectionRefNo && (
+                            <span className="text-[10px] uppercase tracking-wider text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                              Ref: {log.collectionRefNo}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       <p className="text-[12px] text-[#04152d]/70 mb-3 leading-relaxed">{log.details}</p>
                       
                       <div className="flex items-center gap-2 pt-3 border-t border-white/60 text-[11px]">
                         <User size={12} className="text-[#04152d]/40" />
                         <span className="font-medium text-[#04152d]/70">Performed by: <span className="font-semibold text-[#04152d]">{log.actor}</span></span>
                         <span className="px-1.5 py-0.5 bg-[#04152d]/5 rounded text-[#04152d]/60 uppercase tracking-widest text-[9px] ml-1 border border-white/80">{log.role}</span>
+                        {log.userId && (
+                          <span className="text-[10px] text-[#04152d]/40 ml-2 border-l border-[#04152d]/20 pl-2">
+                            ID: <span className="font-mono">{log.userId}</span>
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

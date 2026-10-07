@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, IsBoolean } from 'class-validator';
 
 export class ExecuteDisbursementDto {
   @ApiPropertyOptional({ description: 'Payment execution reference (e.g. bank reference, check number)' })
@@ -21,4 +21,9 @@ export class ExecuteDisbursementDto {
   @IsOptional()
   @IsString()
   details?: string;
+
+  @ApiPropertyOptional({ description: 'Explicit exception approval flag to bypass fund balance check (DPS-006)' })
+  @IsOptional()
+  @IsBoolean()
+  allowFundException?: boolean;
 }
